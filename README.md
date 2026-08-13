@@ -56,3 +56,14 @@ OLLAMA_ORIGINS=* ollama serve
 ## Project Structure
 
 See `TECH_SPEC.md` for the full architecture and `CONVENTIONS.md` for coding standards.
+
+## Summary + Chat with the content
+
+<img width="1871" height="936" alt="image" src="https://github.com/user-attachments/assets/32b0f070-bd4d-4569-8f17-6758ac2e519f" />
+
+
+## Mindmap Screenshot
+
+<img width="1083" height="878" alt="image" src="https://github.com/user-attachments/assets/131a76bf-7df6-45b0-8f01-670f1b087a63" />
+
+
