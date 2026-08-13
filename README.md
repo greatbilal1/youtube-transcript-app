@@ -1,4 +1,4 @@
-# YouTube Transcript Summarizer & Chat
+# YouTube Summarizer, mindmap & LLm Chat
 
 A modern, single-page **React + Vite + TypeScript** web app that runs entirely in the browser to summarize and chat with YouTube transcripts (`.txt` files).
 
