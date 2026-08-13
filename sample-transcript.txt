@@ -1,0 +1,11 @@
+[00:00] Welcome to this video about artificial intelligence.
+[00:05] Today we will cover the basics of machine learning.
+[00:10] Machine learning is a subset of artificial intelligence.
+[00:15] There are three main types: supervised, unsupervised, and reinforcement learning.
+[00:25] Supervised learning uses labeled data to train models.
+[00:35] Unsupervised learning finds patterns in unlabeled data.
+[00:45] Reinforcement learning trains agents through rewards and penalties.
+[00:55] Neural networks are the foundation of modern deep learning.
+[01:05] Deep learning uses many layers of neurons to learn complex patterns.
+[01:15] Common applications include image recognition and natural language processing.
+[01:25] Thanks for watching, and please subscribe for more content.
