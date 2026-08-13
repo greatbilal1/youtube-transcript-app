@@ -57,6 +57,13 @@ OLLAMA_ORIGINS=* ollama serve
 
 See `TECH_SPEC.md` for the full architecture and `CONVENTIONS.md` for coding standards.
 
+
+## Transcript loader
+upload, drop, or paste it. 
+
+<img width="1492" height="790" alt="image" src="https://github.com/user-attachments/assets/3008477f-1c49-478d-a3dd-3cdad1ff8ca0" />
+
+
 ## Summary + Chat with the content
 
 <img width="1871" height="936" alt="image" src="https://github.com/user-attachments/assets/32b0f070-bd4d-4569-8f17-6758ac2e519f" />
