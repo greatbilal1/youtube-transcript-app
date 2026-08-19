@@ -39,20 +39,20 @@ const CENTER_W = 220;
 const CENTER_H = 160;
 const BRANCH_W = 230;
 const BRANCH_H = 150;
-const CHILD_W = 170;
-const CHILD_H = 92;
-const GRAND_W = 150;
-const GRAND_H = 72;
-const DETAIL_W = 150;
-const DETAIL_H = 60;
+const CHILD_W = 180;
+const CHILD_H = 100;
+const GRAND_W = 200;
+const GRAND_H = 120;
+const DETAIL_W = 170;
+const DETAIL_H = 70;
 const GAP = 20;
 const MAX_BRANCHES = 12;
 const MAX_CHILDREN = 4;
 const MAX_GRANDCHILDREN = 3;
 // Details shown as text inside a box; anything beyond becomes a small box.
 const BRANCH_MAX_TEXT = 3;
-const CHILD_MAX_TEXT = 2;
-const GRAND_MAX_TEXT = 2;
+const CHILD_MAX_TEXT = 3;
+const GRAND_MAX_TEXT = 3;
 const MAX_OVERFLOW_DETAILS = 3;
 
 function parseOutline(markdown: string): MindNode {
@@ -227,49 +227,50 @@ export function MindmapV2Panel({ transcript, outline, isGenerating, error, onGen
       });
     });
 
-    // Angular spans (sunburst): each node's span is proportional to its
-    // subtree leaf count.
-    const totalWeight = branchMeta.reduce((a, m) => a + m.weight, 0);
+    // Angular spans: every branch gets an equal wedge (2π/n) so children are
+    // never squeezed into narrow proportional slices — that forced huge radii
+    // and long branch→child arrows. Within a branch, sub-nodes (children +
+    // overflow details) spread evenly across the wedge; grandchildren spread
+    // evenly inside each child's sub-wedge.
+    const branchSpan = (Math.PI * 2) / n;
     let cursor = -Math.PI / 2;
-    const branchSectors = branchMeta.map((m) => {
-      const span = (m.weight / totalWeight) * Math.PI * 2;
+    const branchSectors = branchMeta.map(() => {
       const start = cursor;
-      const mid = start + span / 2;
-      cursor += span;
-      return { start, mid, end: start + span };
+      const mid = start + branchSpan / 2;
+      cursor += branchSpan;
+      return { start, mid, end: start + branchSpan };
     });
 
     // Smallest angular span at each ring, used to size the radii so boxes
     // never overlap.
-    const minBranchSpan = Math.min(...branchSectors.map((s) => s.end - s.start));
+    const minBranchSpan = branchSpan;
     let minSubSpan = Infinity;
     let minGrandSpan = Infinity;
-    branchMeta.forEach((m, i) => {
-      const span = branchSectors[i].end - branchSectors[i].start;
-      const subWeights = [...m.childWeights, ...m.overflow.map(() => 1)];
-      if (subWeights.length) {
-        subWeights.forEach((w) => { minSubSpan = Math.min(minSubSpan, (w / m.weight) * span); });
+    branchMeta.forEach((m) => {
+      const subCount = m.childWeights.length + m.overflow.length;
+      if (subCount > 0) {
+        const subSpan = branchSpan / subCount;
+        minSubSpan = Math.min(minSubSpan, subSpan);
+        m.childSubs.forEach((s) => {
+          const grandCount = s.grandchildren.length + s.overflow.length;
+          if (grandCount > 0) {
+            minGrandSpan = Math.min(minGrandSpan, subSpan / grandCount);
+          }
+        });
       }
-      m.childSubs.forEach((s, j) => {
-        const childSpan = (m.childWeights[j] / m.weight) * span;
-        const grandWeights = [...s.grandchildren.map(() => 1), ...s.overflow.map(() => 1)];
-        if (grandWeights.length) {
-          grandWeights.forEach((w) => { minGrandSpan = Math.min(minGrandSpan, (w / m.childWeights[j]) * childSpan); });
-        }
-      });
     });
 
     const R1 = Math.max(
-      CENTER_H / 2 + BRANCH_H / 2 + 70,
+      CENTER_H / 2 + BRANCH_H / 2 + 110,
       (BRANCH_W + GAP) / (2 * Math.sin(minBranchSpan / 2)),
     );
     const R2 = Math.max(
-      R1 + BRANCH_H / 2 + CHILD_H / 2 + 50,
+      R1 + BRANCH_H / 2 + CHILD_H / 2 + 90,
       Number.isFinite(minSubSpan) ? (CHILD_W + GAP) / (2 * Math.sin(minSubSpan / 2)) : 0,
     );
     const R3 = Math.max(
       R2 + CHILD_H / 2 + GRAND_H / 2 + 70,
-      Number.isFinite(minGrandSpan) ? (GRAND_W + GAP * 1.5) / (2 * Math.sin(minGrandSpan / 2)) : 0,
+      Number.isFinite(minGrandSpan) ? (GRAND_W + GAP) / (2 * Math.sin(minGrandSpan / 2)) : 0,
     );
 
     const stageW = Math.max(1000, (R3 + GRAND_W / 2 + 90) * 2);
@@ -285,14 +286,10 @@ export function MindmapV2Panel({ transcript, outline, isGenerating, error, onGen
       branchBox.x = pos(sector.mid, R1).x;
       branchBox.y = pos(sector.mid, R1).y;
 
-      // Sub-nodes (children + overflow details) spread across the wedge.
-      const subWeights = [...m.childWeights, ...m.overflow.map(() => 1)];
-      let offset = 0;
-      const subAngles = subWeights.map((w) => {
-        const a = sector.start + ((offset + w / 2) / m.weight) * (sector.end - sector.start);
-        offset += w;
-        return a;
-      });
+      // Sub-nodes (children + overflow details) spread evenly across the wedge.
+      const subCount = m.childWeights.length + m.overflow.length;
+      const subSpan = (sector.end - sector.start) / subCount;
+      const subAngles = Array.from({ length: subCount }, (_, k) => sector.start + subSpan * (k + 0.5));
 
       m.children.forEach((child, j) => {
         const childBox = boxById.get(`c-${i}-${j}`)!;
@@ -300,20 +297,19 @@ export function MindmapV2Panel({ transcript, outline, isGenerating, error, onGen
         childBox.x = pos(a, R2).x;
         childBox.y = pos(a, R2).y;
 
-        // Grandchildren + child overflow within the child's sub-wedge.
-        const childSpan = (m.childWeights[j] / m.weight) * (sector.end - sector.start);
-        const childStart = a - childSpan / 2;
-        const grandWeights = [...m.childSubs[j].grandchildren.map(() => 1), ...m.childSubs[j].overflow.map(() => 1)];
-        let goffset = 0;
-        grandWeights.forEach((w, k) => {
-          const ga = childStart + ((goffset + w / 2) / m.childWeights[j]) * childSpan;
+        // Grandchildren + child overflow spread evenly inside the child's sub-wedge.
+        const grandCount = m.childSubs[j].grandchildren.length + m.childSubs[j].overflow.length;
+        const grandSpan = subSpan / grandCount;
+        const grandStart = a - subSpan / 2;
+        const grandAngles = Array.from({ length: grandCount }, (_, k) => grandStart + grandSpan * (k + 0.5));
+
+        grandAngles.forEach((ga, k) => {
           const gid = k < m.childSubs[j].grandchildren.length
             ? `g-${i}-${j}-${k}`
             : `cd-${i}-${j}-${k - m.childSubs[j].grandchildren.length}`;
           const gBox = boxById.get(gid)!;
           gBox.x = pos(ga, R3).x;
           gBox.y = pos(ga, R3).y;
-          goffset += w;
         });
       });
 

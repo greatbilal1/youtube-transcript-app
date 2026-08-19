@@ -33,7 +33,7 @@ function rectStub(this: Element): DOMRect {
   if (el.classList?.contains('mindmap-grand-slot')) {
     const left = parseFloat(el.style.left || '600');
     const top = parseFloat(el.style.top || '450');
-    return makeRect(left - 75, top - 36, 150, 72);
+    return makeRect(left - 100, top - 60, 200, 120);
   }
   return makeRect(0, 0, 0, 0);
 }
@@ -140,8 +140,8 @@ describe('MindmapV2Panel', () => {
 
   it('renders grandchildren and overflow detail boxes for deep outlines', () => {
     const deepOutline = ['# Main Topic',
-      '## Branch A\n- Detail A1\n- Detail A2\n- Detail A3\n- Detail A4\n### Child A.1\n- Child detail A.1.1\n- Child detail A.1.2\n- Child detail A.1.3\n#### Grand A.1.1\n#### Grand A.1.2',
-      '## Branch B\n- Detail B1\n- Detail B2\n- Detail B3\n- Detail B4\n### Child B.1\n- Child detail B.1.1\n- Child detail B.1.2\n- Child detail B.1.3\n#### Grand B.1.1\n#### Grand B.1.2',
+      '## Branch A\n- Detail A1\n- Detail A2\n- Detail A3\n- Detail A4\n### Child A.1\n- Child detail A.1.1\n- Child detail A.1.2\n- Child detail A.1.3\n#### Grand A.1.1\n- Grand detail A.1.1.1\n- Grand detail A.1.1.2\n#### Grand A.1.2\n- Grand detail A.1.2.1',
+      '## Branch B\n- Detail B1\n- Detail B2\n- Detail B3\n- Detail B4\n### Child B.1\n- Child detail B.1.1\n- Child detail B.1.2\n- Child detail B.1.3\n#### Grand B.1.1\n- Grand detail B.1.1.1\n#### Grand B.1.2\n- Grand detail B.1.2.1',
     ].join('\n');
     const { container } = render(
       <MindmapV2Panel transcript={null} outline={deepOutline} isGenerating={false} error={null} onGenerate={vi.fn()} />,
@@ -151,6 +151,11 @@ describe('MindmapV2Panel', () => {
     expect(container.querySelectorAll('.mindmap-child-card').length).toBe(2);
     expect(container.querySelectorAll('.mindmap-grand-card').length).toBe(4);
     expect(container.querySelectorAll('.mindmap-detail-card').length).toBeGreaterThanOrEqual(2);
+    // Grandchild cards are informative: they render their own detail bullets.
+    const grandCards = container.querySelectorAll('.mindmap-grand-card');
+    grandCards.forEach((card) => {
+      expect(card.querySelectorAll('.mindmap-details p').length).toBeGreaterThan(0);
+    });
     // All arrows valid, no NaN
     container.querySelectorAll('.mindmap-link').forEach((path) => {
       const d = path.getAttribute('d') ?? '';
