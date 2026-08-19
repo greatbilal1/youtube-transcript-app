@@ -23,7 +23,12 @@ function rectStub(this: Element): DOMRect {
   if (el.classList?.contains('mindmap-branch-slot')) {
     const left = parseFloat(el.style.left || '600');
     const top = parseFloat(el.style.top || '450');
-    return makeRect(left - 120, top - 80, 240, 160);
+    return makeRect(left - 120, top - 90, 240, 180);
+  }
+  if (el.classList?.contains('mindmap-child-slot')) {
+    const left = parseFloat(el.style.left || '600');
+    const top = parseFloat(el.style.top || '450');
+    return makeRect(left - 85, top - 50, 170, 100);
   }
   return makeRect(0, 0, 0, 0);
 }
@@ -58,9 +63,8 @@ describe('MindmapV2Panel', () => {
     );
     const svg = container.querySelector('svg.mindmap-lines');
     expect(svg).toBeTruthy();
-    // One solid base link (with arrowhead) + one flowing overlay per branch.
+    // One static curvy connector (with arrowhead) per branch.
     expect(container.querySelectorAll('.mindmap-link').length).toBe(12);
-    expect(container.querySelectorAll('.mindmap-link-flow').length).toBe(12);
     // Arrowhead markers exist so the lines end exactly on the box edges.
     expect(container.querySelectorAll('marker[id^="mmv2-arrow-"]').length).toBe(12);
     // Every generated path should carry real coordinates (no NaN/Infinity).
@@ -72,13 +76,38 @@ describe('MindmapV2Panel', () => {
     });
   });
 
-  it('shows more details and child nodes inside each branch card', () => {
+  it('shows details inside each branch card', () => {
     const { container } = render(
       <MindmapV2Panel transcript={null} outline={SAMPLE_OUTLINE} isGenerating={false} error={null} onGenerate={vi.fn()} />,
     );
     const branch = container.querySelector('.mindmap-branch') as HTMLElement;
     expect(branch).toBeTruthy();
     expect(branch.querySelectorAll('.mindmap-details p').length).toBeGreaterThan(0);
+  });
+
+  it('renders child nodes as their own boxes with their own arrows', () => {
+    const outlineWithChildren = ['# Main Topic']
+      .concat(
+        Array.from({ length: 3 }, (_, i) =>
+          `## Branch ${i + 1}\n- Detail ${i + 1}a\n### Child ${i + 1}.1\n- Child detail ${i + 1}.1.1\n### Child ${i + 1}.2\n- Child detail ${i + 1}.2.1`,
+        ),
+      )
+      .join('\n');
+    const { container } = render(
+      <MindmapV2Panel transcript={null} outline={outlineWithChildren} isGenerating={false} error={null} onGenerate={vi.fn()} />,
+    );
+    // 3 branch cards + 6 child cards (2 per branch).
+    expect(container.querySelectorAll('.mindmap-branch').length).toBe(3);
+    expect(container.querySelectorAll('.mindmap-child-card').length).toBe(6);
+    // 3 branch connectors + 6 child connectors, all with real coordinates.
+    expect(container.querySelectorAll('.mindmap-link').length).toBe(9);
+    expect(container.querySelectorAll('.mindmap-link-child').length).toBe(6);
+    container.querySelectorAll('.mindmap-link').forEach((path) => {
+      const d = path.getAttribute('d') ?? '';
+      expect(d).toContain('M ');
+      expect(d).not.toContain('NaN');
+      expect(d).not.toContain('Infinity');
+    });
   });
 
   it('collapses a branch when its header is clicked', () => {
