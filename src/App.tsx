@@ -26,11 +26,8 @@ import { getSession, getTranscript } from './lib/storage/sessionStore';
 const MindmapPanel = lazy(() =>
   import('./components/mindmap/MindmapPanel').then((m) => ({ default: m.MindmapPanel })),
 );
-const MindmapV2Panel = lazy(() =>
-  import('./components/mindmap/MindmapV2Panel').then((m) => ({ default: m.MindmapV2Panel })),
-);
 
-type TabId = 'summarize' | 'mindmap' | 'mindmap-v2' | 'history';
+type TabId = 'summarize' | 'mindmap' | 'history';
 
 export default function App() {
   const { theme, toggleTheme } = useTheme();
@@ -193,7 +190,6 @@ export default function App() {
     () => [
       { id: 'summarize', label: 'Summarize & Chat', icon: <MessageSquare className="h-4 w-4" /> },
       { id: 'mindmap', label: 'Mindmap', icon: <Network className="h-4 w-4" /> },
-      { id: 'mindmap-v2', label: 'Mindmap V2', icon: <Network className="h-4 w-4" /> },
       { id: 'history', label: 'History', icon: <History className="h-4 w-4" /> },
     ],
     [],
@@ -317,27 +313,6 @@ export default function App() {
                     }
                   >
                     <MindmapPanel
-                      transcript={transcript}
-                      outline={mindmapHook.outline}
-                      isGenerating={mindmapHook.isGenerating}
-                      error={mindmapHook.error}
-                      onGenerate={handleGenerateMindmap}
-                    />
-                  </Suspense>
-                </motion.div>
-              )}
-
-              {activeTab === 'mindmap-v2' && (
-                <motion.div
-                  key="mindmap-v2"
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -8 }}
-                  transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-                  className="glass min-h-0 flex-1 overflow-hidden rounded-2xl"
-                >
-                  <Suspense fallback={<div className="flex h-full items-center justify-center text-gray-500 dark:text-gray-400"><Spinner /></div>}>
-                    <MindmapV2Panel
                       transcript={transcript}
                       outline={mindmapHook.outline}
                       isGenerating={mindmapHook.isGenerating}
