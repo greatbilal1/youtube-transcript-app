@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState, lazy, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FileText, MessageSquare, Network, History } from 'lucide-react';
+import { FileText, MessageSquare, Network } from 'lucide-react';
 import { AppShell } from './components/layout/AppShell';
 import { Sidebar } from './components/layout/Sidebar';
 import { SettingsModal } from './components/settings/SettingsModal';
@@ -30,7 +30,7 @@ const MindmapV2Panel = lazy(() =>
   import('./components/mindmap/MindmapV2Panel').then((m) => ({ default: m.MindmapV2Panel })),
 );
 
-type TabId = 'summarize' | 'mindmap' | 'mindmap-v2' | 'history';
+type TabId = 'summarize' | 'mindmap' | 'mindmap-v2';
 
 export default function App() {
   const { theme, toggleTheme } = useTheme();
@@ -193,8 +193,7 @@ export default function App() {
     () => [
       { id: 'summarize', label: 'Summarize & Chat', icon: <MessageSquare className="h-4 w-4" /> },
       { id: 'mindmap', label: 'Mindmap', icon: <Network className="h-4 w-4" /> },
-      { id: 'mindmap-v2', label: 'Mindmap V2', icon: <Network className="h-4 w-4" /> },
-      { id: 'history', label: 'History', icon: <History className="h-4 w-4" /> },
+      { id: 'mindmap-v2', label: 'Mindmap', icon: <Network className="h-4 w-4" /> },
     ],
     [],
   );
@@ -354,25 +353,6 @@ export default function App() {
                 </motion.div>
               )}
 
-              {activeTab === 'history' && (
-                <motion.div
-                  key="history"
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -8 }}
-                  transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-                  className="glass min-h-0 flex-1 overflow-y-auto rounded-2xl p-4"
-                >
-                  <HistoryPanel
-                    sessions={historyHook.sessions}
-                    query={historyHook.query}
-                    onQueryChange={historyHook.setQuery}
-                    loading={historyHook.loading}
-                    onRestore={handleRestoreSession}
-                    onDelete={handleDeleteSession}
-                  />
-                </motion.div>
-              )}
             </AnimatePresence>
           </>
         )}

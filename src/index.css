@@ -147,8 +147,9 @@ body {
   @apply animate-shimmer;
 }
 
-/* Markmap container needs explicit sizing. */
-#mindmap-container svg {
+/* Markmap container needs explicit sizing. Scope to the main markmap SVG so
+   the toolbar's icon SVGs keep their utility-class size. */
+#mindmap-container svg#mindmap-svg {
   width: 100%;
   height: 100%;
 }
