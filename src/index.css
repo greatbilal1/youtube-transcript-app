@@ -14,6 +14,139 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* ------------------------------------------------------------------ */
+/* Ambient page background — soft gradient + floating glow blobs.     */
+/* ------------------------------------------------------------------ */
+@layer base {
+  body {
+    @apply bg-gray-50 text-gray-900;
+  }
+  .dark body {
+    @apply bg-gray-950 text-gray-100;
+  }
+  #root {
+    position: relative;
+    isolation: isolate;
+  }
+}
+
+/* Fixed ambient background with animated glow blobs. Sits behind the app. */
+.ambient-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  background: radial-gradient(
+      120% 120% at 0% 0%,
+      rgba(99, 102, 241, 0.09) 0%,
+      transparent 50%
+    ),
+    radial-gradient(100% 100% at 100% 0%, rgba(139, 92, 246, 0.08) 0%, transparent 50%),
+    radial-gradient(120% 120% at 50% 100%, rgba(34, 211, 238, 0.06) 0%, transparent 50%);
+}
+.dark .ambient-bg {
+  background: radial-gradient(
+      120% 120% at 0% 0%,
+      rgba(99, 102, 241, 0.16) 0%,
+      transparent 50%
+    ),
+    radial-gradient(100% 100% at 100% 0%, rgba(139, 92, 246, 0.14) 0%, transparent 50%),
+    radial-gradient(120% 120% at 50% 100%, rgba(34, 211, 238, 0.12) 0%, transparent 50%);
+}
+
+.ambient-blob {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(60px);
+  opacity: 0.55;
+  will-change: transform;
+}
+
+/* Ambient blob drift. Kept in CSS (not only Tailwind) so it exists even
+   though the animation is applied via inline `animation:` shorthand. */
+@keyframes blob {
+  0% {
+    transform: translate(0px, 0px) scale(1);
+  }
+  33% {
+    transform: translate(30px, -40px) scale(1.1);
+  }
+  66% {
+    transform: translate(-20px, 20px) scale(0.95);
+  }
+  100% {
+    transform: translate(0px, 0px) scale(1);
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Glass surface utilities.                                           */
+/* ------------------------------------------------------------------ */
+@layer components {
+  .glass {
+    @apply border border-white/50 bg-white/70 backdrop-blur-xl;
+    box-shadow: 0 8px 32px -12px rgba(0, 0, 0, 0.12);
+  }
+  .dark .glass {
+    @apply border-white/10 bg-white/[0.04];
+    box-shadow: 0 8px 32px -12px rgba(0, 0, 0, 0.5);
+  }
+
+  .glass-strong {
+    @apply border border-white/60 bg-white/85 backdrop-blur-2xl;
+    box-shadow: 0 16px 48px -16px rgba(0, 0, 0, 0.2);
+  }
+  .dark .glass-strong {
+    @apply border-white/10 bg-gray-900/80;
+    box-shadow: 0 16px 48px -16px rgba(0, 0, 0, 0.6);
+  }
+}
+
+/* Gradient text helper. */
+.text-gradient {
+  @apply bg-gradient-brand bg-clip-text text-transparent;
+}
+
+/* Soft glow shadow helpers (brand tint). */
+.glow-ring {
+  box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.2), 0 8px 40px -12px rgba(99, 102, 241, 0.45);
+}
+
+/* ------------------------------------------------------------------ */
+/* Scrollbar polish.                                                  */
+/* ------------------------------------------------------------------ */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(99, 102, 241, 0.4) transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background: rgba(99, 102, 241, 0.35);
+  border-radius: 9999px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(99, 102, 241, 0.55);
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Shimmer for streaming-loading placeholders. */
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(99, 102, 241, 0.05) 25%,
+    rgba(139, 92, 246, 0.14) 50%,
+    rgba(99, 102, 241, 0.05) 75%
+  );
+  background-size: 200% 100%;
+  @apply animate-shimmer;
+}
+
 /* Markmap container needs explicit sizing. */
 #mindmap-container svg {
   width: 100%;

@@ -1,3 +1,4 @@
+import { motion } from 'framer-motion';
 import { formatTimestamp } from '../../lib/timestamps';
 
 interface TimestampChipProps {
@@ -11,16 +12,19 @@ interface TimestampChipProps {
  */
 export function TimestampChip({ seconds, onClick }: TimestampChipProps) {
   return (
-    <button
+    <motion.button
+      type="button"
       onClick={(e) => {
         e.preventDefault();
         e.stopPropagation();
         onClick(seconds);
       }}
-      className="mx-0.5 inline-block rounded bg-brand-100 px-1 py-0.5 font-mono text-[0.8em] text-brand-700 transition-colors hover:bg-brand-200 dark:bg-brand-900/50 dark:text-brand-300 dark:hover:bg-brand-900"
+      whileHover={{ scale: 1.06 }}
+      whileTap={{ scale: 0.95 }}
+      className="mx-0.5 inline-block rounded-md bg-brand-100 px-1.5 py-0.5 font-mono text-[0.8em] text-brand-700 shadow-sm transition-shadow hover:shadow-glow dark:bg-brand-400/15 dark:text-brand-300"
       title={`Jump to ${formatTimestamp(seconds)}`}
     >
       {formatTimestamp(seconds)}
-    </button>
+    </motion.button>
   );
 }

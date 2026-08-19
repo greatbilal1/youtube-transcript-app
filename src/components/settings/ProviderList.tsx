@@ -1,4 +1,5 @@
 import { Check } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import type { ProviderConfig, ProviderId } from '../../types';
 import { cn } from '../../utils/cn';
 
@@ -15,14 +16,17 @@ export function ProviderList({ providers, activeId, onSelect }: ProviderListProp
         const p = providers[id];
         const active = id === activeId;
         return (
-          <button
+          <motion.button
             key={id}
+            type="button"
             onClick={() => onSelect(id)}
+            whileHover={{ scale: 1.015 }}
+            whileTap={{ scale: 0.985 }}
             className={cn(
-              'flex w-full items-center justify-between rounded-lg border px-3 py-2.5 text-left transition-colors',
+              'flex w-full items-center justify-between rounded-xl border px-3 py-2.5 text-left transition-colors',
               active
-                ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/30'
-                : 'border-gray-200 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800',
+                ? 'border-brand-400/70 bg-brand-500/10 shadow-glow'
+                : 'border-gray-200/70 bg-white/50 hover:bg-white/80 dark:border-white/10 dark:bg-white/[0.02] dark:hover:bg-white/[0.06]',
             )}
           >
             <div>
@@ -33,8 +37,20 @@ export function ProviderList({ providers, activeId, onSelect }: ProviderListProp
                 {p.model || 'No model set'}
               </div>
             </div>
-            {active && <Check className="h-5 w-5 text-brand-600 dark:text-brand-400" />}
-          </button>
+            <AnimatePresence>
+              {active && (
+                <motion.div
+                  initial={{ scale: 0, rotate: -90 }}
+                  animate={{ scale: 1, rotate: 0 }}
+                  exit={{ scale: 0, opacity: 0 }}
+                  transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+                  className="grid h-6 w-6 place-items-center rounded-full bg-gradient-brand text-white shadow-glow-primary"
+                >
+                  <Check className="h-3.5 w-3.5" />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.button>
         );
       })}
     </div>

@@ -40,8 +40,15 @@ export function useChat(
   // summary/mindmap update refreshing the parent).
   const activeSessionIdRef = useRef<string | null>(null);
 
-  // Sync messages when a session is restored.
+  // Sync messages when a session is restored. This mirrors the guard in
+  // useSummary: while a stream is in flight, `messages` is owned by the
+  // streaming callback — never clobber it with the session's snapshot (which
+  // is only persisted once the stream completes). Without this guard, a
+  // session-refresh `setSession` landing mid- or post-stream can wipe the
+  // just-received answer.
   useEffect(() => {
+    if (isStreaming) return;
+
     const id = session?.id ?? null;
     if (id === activeSessionIdRef.current) return;
     activeSessionIdRef.current = id;
@@ -53,7 +60,7 @@ export function useChat(
       messagesRef.current = [];
       setMessages([]);
     }
-  }, [session]);
+  }, [session, isStreaming]);
 
   const sendMessage = useCallback(
     async (text?: string, targetSession?: Session | null) => {

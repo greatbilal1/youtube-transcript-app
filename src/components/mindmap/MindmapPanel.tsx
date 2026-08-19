@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { Network } from 'lucide-react';
+import { motion } from 'framer-motion';
 import type { Transcript } from '../../types';
 import { MarkmapView } from './MarkmapView';
 import { MindmapControls } from './MindmapControls';
@@ -57,9 +58,13 @@ export function MindmapPanel({
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex items-center gap-2 border-b border-gray-200 px-4 py-3 dark:border-gray-700">
-        <Network className="h-5 w-5 text-brand-600 dark:text-brand-400" />
-        <h2 className="text-lg font-semibold">Mindmap</h2>
+      <div className="flex items-center gap-2 border-b border-gray-200/70 px-4 py-3 dark:border-white/10">
+        <div className="grid h-7 w-7 place-items-center rounded-lg bg-brand-500/10 text-brand-600 dark:text-brand-400">
+          <Network className="h-4 w-4" />
+        </div>
+        <h2 className="text-lg font-semibold tracking-tight text-gray-900 dark:text-gray-100">
+          Mindmap
+        </h2>
         <div className="ml-auto">
           <MindmapControls
             onGenerate={onGenerate}
@@ -73,9 +78,13 @@ export function MindmapPanel({
       </div>
 
       {error && (
-        <div className="m-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/30 dark:text-red-300">
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="m-4 rounded-xl border border-red-200/80 bg-red-50/80 p-3 text-sm text-red-700 backdrop-blur dark:border-red-800/60 dark:bg-red-900/30 dark:text-red-300"
+        >
           {error}
-        </div>
+        </motion.div>
       )}
 
       <div className="min-h-0 flex-1">
@@ -89,12 +98,16 @@ export function MindmapPanel({
             <MarkmapView markdown={outline} />
           </div>
         ) : (
-          <div className="flex h-full flex-col items-center justify-center gap-2 p-8 text-center">
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex h-full flex-col items-center justify-center gap-2 p-8 text-center"
+          >
             <Network className="h-10 w-10 text-gray-300 dark:text-gray-600" />
             <p className="text-sm text-gray-500 dark:text-gray-400">
               Generate a mindmap to visualize the transcript's core concepts.
             </p>
-          </div>
+          </motion.div>
         )}
       </div>
     </div>

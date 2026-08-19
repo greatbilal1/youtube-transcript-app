@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import * as Slider from '@radix-ui/react-slider';
 import type { ProviderId, SettingsState } from '../../types';
 import { Modal } from '../common/Modal';
 import { Button } from '../common/Button';
@@ -60,18 +61,28 @@ export function SettingsModal({
 
           <div className="mt-4 space-y-3">
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
-                Temperature: {settings.temperature.toFixed(1)}
-              </label>
-              <input
-                type="range"
+              <div className="mb-2 flex items-center justify-between">
+                <label className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                  Temperature
+                </label>
+                <span className="rounded-md bg-brand-500/10 px-1.5 py-0.5 text-xs font-medium text-brand-600 dark:text-brand-300">
+                  {settings.temperature.toFixed(1)}
+                </span>
+              </div>
+              <Slider.Root
                 min={0}
                 max={1}
                 step={0.1}
-                value={settings.temperature}
-                onChange={(e) => onSetTemperature(parseFloat(e.target.value))}
-                className="w-full accent-brand-600"
-              />
+                value={[settings.temperature]}
+                onValueChange={(v) => onSetTemperature(v[0])}
+                className="relative flex h-5 w-full touch-none select-none items-center"
+                aria-label="Temperature"
+              >
+                <Slider.Track className="relative h-1.5 w-full grow overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
+                  <Slider.Range className="absolute h-full rounded-full bg-gradient-brand" />
+                </Slider.Track>
+                <Slider.Thumb className="block h-4 w-4 rounded-full bg-white shadow-md ring-1 ring-brand-400 transition hover:scale-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500" />
+              </Slider.Root>
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
@@ -84,7 +95,7 @@ export function SettingsModal({
                 step={256}
                 value={settings.maxTokens}
                 onChange={(e) => onSetMaxTokens(parseInt(e.target.value, 10) || 2048)}
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+                className="w-full rounded-xl border border-gray-300/80 bg-white/70 px-3 py-2 text-sm transition focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-400/30 dark:border-white/15 dark:bg-white/[0.04] dark:text-gray-100"
               />
             </div>
           </div>

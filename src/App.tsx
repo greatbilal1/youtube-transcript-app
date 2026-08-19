@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState, lazy, Suspense } from 'react';
-import { v4 as uuid } from 'uuid';
+import { motion, AnimatePresence } from 'framer-motion';
 import { FileText, MessageSquare, Network, History } from 'lucide-react';
 import { AppShell } from './components/layout/AppShell';
 import { Sidebar } from './components/layout/Sidebar';
@@ -10,7 +10,7 @@ import { ChatPanel } from './components/chat/ChatPanel';
 import { HistoryPanel } from './components/history/HistoryPanel';
 import { Tabs } from './components/common/Tabs';
 import { Spinner } from './components/common/Spinner';
-import { ToastContainer, type ToastData } from './components/common/Toast';
+import { ToastContainer, toast } from './components/common/Toast';
 import { useSettings } from './hooks/useSettings';
 import { useTranscript } from './hooks/useTranscript';
 import { useChat } from './hooks/useChat';
@@ -43,20 +43,17 @@ export default function App() {
   const [leftSidebarOpen, setLeftSidebarOpen] = useState(true);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<TabId>('summarize');
-  const [toasts, setToasts] = useState<ToastData[]>([]);
 
   const chatHook = useChat(transcript, session, settings);
   const summaryHook = useSummary(transcript, session, settings);
   const mindmapHook = useMindmap(transcript, session, settings);
   const historyHook = useHistory();
 
-  const pushToast = useCallback((type: ToastData['type'], message: string) => {
-    const id = uuid();
-    setToasts((prev) => [...prev, { id, type, message }]);
-  }, []);
-
-  const dismissToast = useCallback((id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
+  /** Fire a Sonner toast for a user-facing message. */
+  const pushToast = useCallback((type: 'success' | 'error' | 'info', message: string) => {
+    if (type === 'success') toast.success(message);
+    else if (type === 'error') toast.error(message);
+    else toast.info(message);
   }, []);
 
   /** Ensure a session exists for the current transcript. */
@@ -230,13 +227,26 @@ export default function App() {
       <div className="mx-auto flex h-full max-w-5xl flex-col gap-4 p-4">
         {!transcript ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-6">
-            <div className="text-center">
-              <FileText className="mx-auto mb-3 h-12 w-12 text-brand-500" />
-              <h2 className="text-xl font-semibold">Upload a YouTube transcript</h2>
-              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+            <motion.div
+              initial={{ opacity: 0, y: -12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+              className="text-center"
+            >
+              <motion.div
+                animate={{ y: [0, -6, 0] }}
+                transition={{ duration: 3.5, repeat: Infinity, ease: 'easeInOut' }}
+                className="mx-auto mb-3 grid h-16 w-16 place-items-center rounded-2xl bg-gradient-brand text-white shadow-glow-primary"
+              >
+                <FileText className="h-8 w-8" />
+              </motion.div>
+              <h2 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
+                Upload a YouTube <span className="text-gradient">transcript</span>
+              </h2>
+              <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
                 Drop a .txt transcript file to summarize, chat, and visualize it.
               </p>
-            </div>
+            </motion.div>
             <div className="w-full max-w-xl">
               <DropZone onFile={handleFile} onPasteText={handlePasteText} />
             </div>
@@ -250,66 +260,89 @@ export default function App() {
               </span>
             </div>
 
-            {activeTab === 'summarize' && (
-              <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-2">
-                <div className="min-h-0 overflow-y-auto rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
-                  <SummaryPanel
-                    transcript={transcript}
-                    summary={summaryHook.summary}
-                    selectedLength={summaryHook.selectedLength}
-                    isGenerating={summaryHook.isGenerating}
-                    error={summaryHook.error}
-                    onGenerate={handleGenerateSummary}
-                    onTimestampClick={handleTimestampClick}
-                  />
-                </div>
-                <div className="min-h-0 overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
-                  <ChatPanel
-                    messages={chatHook.messages}
-                    input={chatHook.input}
-                    onInputChange={chatHook.setInput}
-                    onSend={handleSendChat}
-                    onStop={chatHook.stopStreaming}
-                    isStreaming={chatHook.isStreaming}
-                    isRTL={transcript?.isRTL}
-                    onTimestampClick={handleTimestampClick}
-                  />
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'mindmap' && (
-              <div className="min-h-0 flex-1 overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
-                <Suspense
-                  fallback={
-                    <div className="flex h-full items-center justify-center text-gray-500 dark:text-gray-400">
-                      <Spinner />
-                    </div>
-                  }
+            <AnimatePresence mode="wait">
+              {activeTab === 'summarize' && (
+                <motion.div
+                  key="summarize"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+                  className="grid min-h-0 flex-1 gap-4 lg:grid-cols-2"
                 >
-                  <MindmapPanel
-                    transcript={transcript}
-                    outline={mindmapHook.outline}
-                    isGenerating={mindmapHook.isGenerating}
-                    error={mindmapHook.error}
-                    onGenerate={handleGenerateMindmap}
-                  />
-                </Suspense>
-              </div>
-            )}
+                  <div className="glass min-h-0 overflow-y-auto rounded-2xl p-4">
+                    <SummaryPanel
+                      transcript={transcript}
+                      summary={summaryHook.summary}
+                      selectedLength={summaryHook.selectedLength}
+                      isGenerating={summaryHook.isGenerating}
+                      error={summaryHook.error}
+                      onGenerate={handleGenerateSummary}
+                      onTimestampClick={handleTimestampClick}
+                    />
+                  </div>
+                  <div className="glass min-h-0 overflow-hidden rounded-2xl">
+                    <ChatPanel
+                      messages={chatHook.messages}
+                      input={chatHook.input}
+                      onInputChange={chatHook.setInput}
+                      onSend={handleSendChat}
+                      onStop={chatHook.stopStreaming}
+                      isStreaming={chatHook.isStreaming}
+                      isRTL={transcript?.isRTL}
+                      onTimestampClick={handleTimestampClick}
+                    />
+                  </div>
+                </motion.div>
+              )}
 
-            {activeTab === 'history' && (
-              <div className="min-h-0 flex-1 overflow-y-auto rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
-                <HistoryPanel
-                  sessions={historyHook.sessions}
-                  query={historyHook.query}
-                  onQueryChange={historyHook.setQuery}
-                  loading={historyHook.loading}
-                  onRestore={handleRestoreSession}
-                  onDelete={handleDeleteSession}
-                />
-              </div>
-            )}
+              {activeTab === 'mindmap' && (
+                <motion.div
+                  key="mindmap"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+                  className="glass min-h-0 flex-1 overflow-hidden rounded-2xl"
+                >
+                  <Suspense
+                    fallback={
+                      <div className="flex h-full items-center justify-center text-gray-500 dark:text-gray-400">
+                        <Spinner />
+                      </div>
+                    }
+                  >
+                    <MindmapPanel
+                      transcript={transcript}
+                      outline={mindmapHook.outline}
+                      isGenerating={mindmapHook.isGenerating}
+                      error={mindmapHook.error}
+                      onGenerate={handleGenerateMindmap}
+                    />
+                  </Suspense>
+                </motion.div>
+              )}
+
+              {activeTab === 'history' && (
+                <motion.div
+                  key="history"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+                  className="glass min-h-0 flex-1 overflow-y-auto rounded-2xl p-4"
+                >
+                  <HistoryPanel
+                    sessions={historyHook.sessions}
+                    query={historyHook.query}
+                    onQueryChange={historyHook.setQuery}
+                    loading={historyHook.loading}
+                    onRestore={handleRestoreSession}
+                    onDelete={handleDeleteSession}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
           </>
         )}
       </div>
@@ -324,7 +357,7 @@ export default function App() {
         onSetMaxTokens={setMaxTokens}
       />
 
-      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+      <ToastContainer />
     </AppShell>
   );
 }

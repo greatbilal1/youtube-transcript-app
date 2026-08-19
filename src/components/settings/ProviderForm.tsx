@@ -6,9 +6,9 @@ interface ProviderFormProps {
 }
 
 const FIELD_CLASS =
-  'w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 ' +
-  'focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 ' +
-  'dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100';
+  'w-full rounded-xl border border-gray-300/80 bg-white/70 px-3 py-2 text-sm text-gray-900 transition ' +
+  'focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-400/30 ' +
+  'dark:border-white/15 dark:bg-white/[0.04] dark:text-gray-100';
 
 export function ProviderForm({ provider, onChange }: ProviderFormProps) {
   return (

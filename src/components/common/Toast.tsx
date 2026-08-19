@@ -1,6 +1,4 @@
-import { useEffect } from 'react';
-import { CheckCircle2, XCircle, Info } from 'lucide-react';
-import { cn } from '../../utils/cn';
+import { Toaster as SonnerToaster } from 'sonner';
 
 export type ToastType = 'success' | 'error' | 'info';
 
@@ -10,49 +8,30 @@ export interface ToastData {
   message: string;
 }
 
-interface ToastProps {
-  toast: ToastData;
-  onDismiss: (id: string) => void;
-}
+/**
+ * Toast notifications, powered by Sonner. The `<ToastContainer />` renders
+ * the `Toaster` shell; toasts are fired via the imperative `toast` API
+ * (a forwarded re-export below) so components/App can keep using it without
+ * reaching into Sonner directly.
+ */
+export { toast } from 'sonner';
 
-const ICONS = {
-  success: <CheckCircle2 className="h-5 w-5 text-green-500" />,
-  error: <XCircle className="h-5 w-5 text-red-500" />,
-  info: <Info className="h-5 w-5 text-brand-500" />,
-};
-
-export function Toast({ toast, onDismiss }: ToastProps) {
-  useEffect(() => {
-    const t = window.setTimeout(() => onDismiss(toast.id), 3500);
-    return () => window.clearTimeout(t);
-  }, [toast.id, onDismiss]);
-
+export function ToastContainer() {
   return (
-    <div
-      className={cn(
-        'pointer-events-auto flex items-center gap-3 rounded-lg border px-4 py-3 shadow-lg',
-        'bg-white dark:bg-gray-800',
-        'border-gray-200 dark:border-gray-700',
-      )}
-    >
-      {ICONS[toast.type]}
-      <span className="text-sm text-gray-800 dark:text-gray-100">{toast.message}</span>
-    </div>
-  );
-}
-
-export function ToastContainer({
-  toasts,
-  onDismiss,
-}: {
-  toasts: ToastData[];
-  onDismiss: (id: string) => void;
-}) {
-  return (
-    <div className="pointer-events-none fixed bottom-4 right-4 z-[60] flex flex-col gap-2">
-      {toasts.map((t) => (
-        <Toast key={t.id} toast={t} onDismiss={onDismiss} />
-      ))}
-    </div>
+    <SonnerToaster
+      position="bottom-right"
+      toastOptions={{
+        style: {
+          background: 'var(--toast-bg, #ffffff)',
+          color: 'var(--toast-fg, #111827)',
+          border: '1px solid rgba(99,102,241,0.2)',
+          borderRadius: '0.75rem',
+          boxShadow: '0 8px 32px -12px rgba(0,0,0,0.2)',
+          backdropFilter: 'blur(12px)',
+        },
+      }}
+      theme="system"
+      richColors
+    />
   );
 }

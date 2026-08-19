@@ -28,10 +28,14 @@ export function ChatPanel({
 }: ChatPanelProps) {
   return (
     <div className="flex h-full flex-col">
-      <div className="flex items-center gap-2 border-b border-gray-200 px-4 py-3 dark:border-gray-700">
-        <MessageSquare className="h-5 w-5 text-brand-600 dark:text-brand-400" />
-        <h2 className="text-lg font-semibold">Chat</h2>
-        <span className="ml-auto rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+      <div className="flex items-center gap-2 border-b border-gray-200/70 px-4 py-3 dark:border-white/10">
+        <div className="grid h-7 w-7 place-items-center rounded-lg bg-brand-500/10 text-brand-600 dark:text-brand-400">
+          <MessageSquare className="h-4 w-4" />
+        </div>
+        <h2 className="text-lg font-semibold tracking-tight text-gray-900 dark:text-gray-100">
+          Chat
+        </h2>
+        <span className="ml-auto rounded-full bg-brand-500/10 px-2.5 py-0.5 text-xs font-medium text-brand-600 dark:text-brand-300">
           Strict context
         </span>
       </div>

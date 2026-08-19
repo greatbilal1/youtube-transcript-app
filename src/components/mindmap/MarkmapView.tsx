@@ -3,7 +3,10 @@ import { Transformer } from 'markmap-lib';
 import { Markmap } from 'markmap-view';
 import { walkTree } from 'markmap-common';
 import { zoomIdentity } from 'd3';
-import { ZoomIn, ZoomOut, Maximize, ListTree, ListCollapse } from 'lucide-react';
+import { ZoomIn, ZoomOut, Maximize, ListTree, ListCollapse, Hand, MousePointer2 } from 'lucide-react';
+import { cn } from '../../utils/cn';
+
+type PanTool = 'pointer' | 'hand';
 
 interface MarkmapViewProps {
   markdown: string;
@@ -55,6 +58,33 @@ const MARKMAP_STYLE = () => `
   stroke: #6366f1;
   stroke-width: 1.5;
 }
+/* ---- Navigation tools -------------------------------- */
+/* Pointer tool: default canvas cursor; nodes stay clickable. */
+#mindmap-svg.markmap-tool-pointer {
+  cursor: default;
+}
+/* Hand tool: grab cursor across the whole canvas, grabbing while dragging.
+   Circle nodes stay clickable so a click still expands/collapses them
+   (marked with a pointer cursor), while the text labels and empty canvas
+   pass pointer events through so dragging there pans the map. */
+#mindmap-svg.markmap-tool-hand {
+  cursor: grab;
+}
+#mindmap-svg.markmap-tool-hand.markmap-grabbing {
+  cursor: grabbing;
+}
+#mindmap-svg.markmap-tool-hand .markmap-foreign {
+  pointer-events: none;
+}
+#mindmap-svg.markmap-tool-hand .markmap-node > circle {
+  pointer-events: all;
+  cursor: pointer;
+}
+/* Finger cursor while hovering a circle node in hand mode. Applied to the svg
+   by a React hover handler so it takes precedence over the grab cursor. */
+#mindmap-svg.markmap-tool-hand.markmap-cursor-pointer {
+  cursor: pointer;
+}
 `;
 
 /**
@@ -67,6 +97,7 @@ export function MarkmapView({ markdown }: MarkmapViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const markmapRef = useRef<Markmap | null>(null);
   const [ready, setReady] = useState(false);
+  const [tool, setTool] = useState<PanTool>('pointer');
   const [isDark, setIsDark] = useState(() =>
     document.documentElement.classList.contains('dark'),
   );
@@ -87,6 +118,16 @@ export function MarkmapView({ markdown }: MarkmapViewProps) {
     const svg = containerRef.current?.querySelector('svg#mindmap-svg');
     svg?.classList.toggle('markmap-dark', isDark);
   }, [isDark]);
+
+  // Keep the active navigation tool's class on the SVG. Also watches `markdown`
+  // because the SVG element is recreated whenever the outline changes.
+  useEffect(() => {
+    const svg = containerRef.current?.querySelector('svg#mindmap-svg');
+    if (!svg) return;
+    svg.classList.toggle('markmap-tool-pointer', tool === 'pointer');
+    svg.classList.toggle('markmap-tool-hand', tool === 'hand');
+    svg.classList.toggle('markmap-grabbing', false);
+  }, [tool, markdown]);
 
   // Create the markmap when the container is available.
   useEffect(() => {
@@ -206,11 +247,91 @@ export function MarkmapView({ markdown }: MarkmapViewProps) {
     void mm.renderData().then(() => mm.fit());
   }, []);
 
+  // Toggle the `grabbing` cursor class on the SVG while the user drags with
+  // the hand tool active. Only the grab cursor state, not actual panning —
+  // panning is driven by markmap's built-in zoom behavior.
+  const setGrabbing = useCallback((grabbing: boolean) => {
+    containerRef.current
+      ?.querySelector('svg#mindmap-svg')
+      ?.classList.toggle('markmap-grabbing', grabbing);
+  }, []);
+
+  // Set whether the finger (`pointer`) cursor is shown over a circle node while
+  // the hand tool is active. Uses event delegation so it works regardless of
+  // how the SVG re-renders nodes.
+  const setCircleHover = useCallback(
+    (target: EventTarget | null) => {
+      const isCircle = (target as Element | null)?.closest?.('circle') != null;
+      containerRef.current
+        ?.querySelector('svg#mindmap-svg')
+        ?.classList.toggle('markmap-cursor-pointer', isCircle);
+    },
+    [],
+  );
+
+  const handleMouseOver = useCallback(
+    (e: React.MouseEvent) => {
+      if (tool === 'hand') setCircleHover(e.target);
+    },
+    [tool, setCircleHover],
+  );
+
+  const handleMouseOut = useCallback(
+    (e: React.MouseEvent) => {
+      if (tool === 'hand') setCircleHover(e.relatedTarget);
+    },
+    [tool, setCircleHover],
+  );
+
+  // Reset the finger-cursor class whenever the tool changes.
+  useEffect(() => {
+    containerRef.current?.querySelector('svg#mindmap-svg')?.classList.remove('markmap-cursor-pointer');
+  }, [tool]);
+
   return (
-    <div className={`relative h-full w-full ${isDark ? 'markmap-dark' : ''}`}>
+    <div
+      className={`relative h-full w-full ${isDark ? 'markmap-dark' : ''}`}
+      onMouseDown={() => tool === 'hand' && setGrabbing(true)}
+      onMouseUp={() => setGrabbing(false)}
+      onMouseLeave={() => setGrabbing(false)}
+      onMouseOver={handleMouseOver}
+      onMouseOut={handleMouseOut}
+    >
       <div ref={containerRef} className="h-full w-full" />
       {ready && (
         <div className="absolute right-3 top-3 flex flex-col gap-1 rounded-lg border border-gray-200 bg-white/90 p-1 shadow-sm backdrop-blur dark:border-gray-700 dark:bg-gray-900/90">
+          {/* Navigation tool toggle: pointer (interact with nodes) vs hand (pan). */}
+          <div className="flex flex-col gap-0.5 rounded-md bg-gray-100/80 p-0.5 dark:bg-gray-800/80">
+            <button
+              onClick={() => setTool('pointer')}
+              title="Pointer tool — click nodes to expand/collapse"
+              aria-label="Pointer tool — click nodes to expand/collapse"
+              aria-pressed={tool === 'pointer'}
+              className={cn(
+                'rounded-md p-1.5 transition-colors',
+                tool === 'pointer'
+                  ? 'bg-white text-brand-600 shadow-sm dark:bg-gray-700 dark:text-brand-300'
+                  : 'text-gray-600 hover:bg-white/70 dark:text-gray-300 dark:hover:bg-gray-700/70',
+              )}
+            >
+              <MousePointer2 className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => setTool('hand')}
+              title="Hand tool — drag to pan"
+              aria-label="Hand tool — drag to pan"
+              aria-pressed={tool === 'hand'}
+              className={cn(
+                'rounded-md p-1.5 transition-colors',
+                tool === 'hand'
+                  ? 'bg-white text-brand-600 shadow-sm dark:bg-gray-700 dark:text-brand-300'
+                  : 'text-gray-600 hover:bg-white/70 dark:text-gray-300 dark:hover:bg-gray-700/70',
+              )}
+            >
+              <Hand className="h-4 w-4" />
+            </button>
+          </div>
+          <div className="my-0.5 h-px bg-gray-200 dark:bg-gray-700" />
           <button
             onClick={handleExpandAll}
             title="Expand all nodes"
