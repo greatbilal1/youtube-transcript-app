@@ -1,10 +1,11 @@
-import { useCallback } from 'react';
-import { Network } from 'lucide-react';
+import { useCallback, useState } from 'react';
+import { Network, ZoomIn, ZoomOut, Maximize, ListTree, ListCollapse, Hand, MousePointer2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import type { Transcript } from '../../types';
 import { MindmapControls } from './MindmapControls';
 import { Spinner } from '../common/Spinner';
 import { downloadBlob } from '../../utils/download';
+import { cn } from '../../utils/cn';
 
 interface MindmapV2PanelProps {
   transcript: Transcript | null;
@@ -14,6 +15,8 @@ interface MindmapV2PanelProps {
   onGenerate: () => void;
 }
 
+type PanTool = 'pointer' | 'hand';
+
 export function MindmapV2Panel({
   transcript,
   outline,
@@ -21,6 +24,7 @@ export function MindmapV2Panel({
   error,
   onGenerate,
 }: MindmapV2PanelProps) {
+  const [tool, setTool] = useState<PanTool>('pointer');
   const handleExportSvg = useCallback(() => {
     const svg = document.querySelector('#mindmap-v2-container svg');
     if (!svg) return;
@@ -93,8 +97,81 @@ export function MindmapV2Panel({
             <span className="text-sm">Generating mindmap outline…</span>
           </div>
         ) : outline ? (
-          <div id="mindmap-v2-container" className="h-full w-full">
-            {/* Mindmap V2 visualization goes here. */}
+          <div className="relative h-full w-full">
+            <div id="mindmap-v2-container" className="h-full w-full">
+              {/* Mindmap V2 visualization goes here. */}
+            </div>
+            {/* Navigation tools: pointer (interact) vs hand (pan), expand/collapse,
+                and zoom controls — same set as the original Mindmap panel. */}
+            <div className="absolute right-3 top-3 flex flex-col gap-1 rounded-lg border border-gray-200 bg-white/90 p-1 shadow-sm backdrop-blur dark:border-gray-700 dark:bg-gray-900/90">
+              <div className="flex flex-col gap-0.5 rounded-md bg-gray-100/80 p-0.5 dark:bg-gray-800/80">
+                <button
+                  onClick={() => setTool('pointer')}
+                  title="Pointer tool — click nodes to expand/collapse"
+                  aria-label="Pointer tool — click nodes to expand/collapse"
+                  aria-pressed={tool === 'pointer'}
+                  className={cn(
+                    'rounded-md p-1.5 transition-colors',
+                    tool === 'pointer'
+                      ? 'bg-white text-brand-600 shadow-sm dark:bg-gray-700 dark:text-brand-300'
+                      : 'text-gray-600 hover:bg-white/70 dark:text-gray-300 dark:hover:bg-gray-700/70',
+                  )}
+                >
+                  <MousePointer2 className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => setTool('hand')}
+                  title="Hand tool — drag to pan"
+                  aria-label="Hand tool — drag to pan"
+                  aria-pressed={tool === 'hand'}
+                  className={cn(
+                    'rounded-md p-1.5 transition-colors',
+                    tool === 'hand'
+                      ? 'bg-white text-brand-600 shadow-sm dark:bg-gray-700 dark:text-brand-300'
+                      : 'text-gray-600 hover:bg-white/70 dark:text-gray-300 dark:hover:bg-gray-700/70',
+                  )}
+                >
+                  <Hand className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="my-0.5 h-px bg-gray-200 dark:bg-gray-700" />
+              <button
+                title="Expand all nodes"
+                aria-label="Expand all nodes"
+                className="rounded-md p-1.5 text-gray-600 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+              >
+                <ListTree className="h-4 w-4" />
+              </button>
+              <button
+                title="Collapse to top levels"
+                aria-label="Collapse to top levels"
+                className="rounded-md p-1.5 text-gray-600 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+              >
+                <ListCollapse className="h-4 w-4" />
+              </button>
+              <div className="my-0.5 h-px bg-gray-200 dark:bg-gray-700" />
+              <button
+                title="Zoom in"
+                aria-label="Zoom in"
+                className="rounded-md p-1.5 text-gray-600 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+              >
+                <ZoomIn className="h-4 w-4" />
+              </button>
+              <button
+                title="Zoom out"
+                aria-label="Zoom out"
+                className="rounded-md p-1.5 text-gray-600 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+              >
+                <ZoomOut className="h-4 w-4" />
+              </button>
+              <button
+                title="Fit to view"
+                aria-label="Fit to view"
+                className="rounded-md p-1.5 text-gray-600 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+              >
+                <Maximize className="h-4 w-4" />
+              </button>
+            </div>
           </div>
         ) : (
           <motion.div
