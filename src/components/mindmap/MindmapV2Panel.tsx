@@ -38,14 +38,22 @@ const EMOJIS = ['🧭', '💡', '🔎', '⚖️', '📌', '🌱', '🎯', '🧩'
 const CENTER_W = 220;
 const CENTER_H = 160;
 const BRANCH_W = 230;
-const BRANCH_H = 180;
+const BRANCH_H = 150;
 const CHILD_W = 170;
-const CHILD_H = 100;
-const GAP = 22;
+const CHILD_H = 92;
+const GRAND_W = 150;
+const GRAND_H = 72;
+const DETAIL_W = 150;
+const DETAIL_H = 60;
+const GAP = 20;
 const MAX_BRANCHES = 12;
-const MAX_DETAILS = 5;
 const MAX_CHILDREN = 4;
-const MAX_CHILD_DETAILS = 3;
+const MAX_GRANDCHILDREN = 3;
+// Details shown as text inside a box; anything beyond becomes a small box.
+const BRANCH_MAX_TEXT = 3;
+const CHILD_MAX_TEXT = 2;
+const GRAND_MAX_TEXT = 2;
+const MAX_OVERFLOW_DETAILS = 3;
 
 function parseOutline(markdown: string): MindNode {
   const root: MindNode = { title: 'Transcript Mindmap', details: [], children: [] };
@@ -90,6 +98,28 @@ interface ConnectorLine {
   x1: number; y1: number; x2: number; y2: number;
   c1x: number; c1y: number; c2x: number; c2y: number;
   colorIndex: number;
+  depth: number;
+}
+
+type BoxType = 'branch' | 'child' | 'grand' | 'detail';
+
+interface BoxSpec {
+  id: string;
+  type: BoxType;
+  x: number;
+  y: number;
+  title: string;
+  details: string[];
+  colorIndex: number;
+  branchIndex: number;
+  parentId: string; // 'center' or a box id
+}
+
+interface EdgeSpec {
+  from: string;
+  to: string;
+  colorIndex: number;
+  depth: number;
 }
 
 // Curvy bezier control points: bulge perpendicular to the straight line so
@@ -128,64 +158,189 @@ export function MindmapV2Panel({ transcript, outline, isGenerating, error, onGen
   const mapRef = useRef<HTMLDivElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const centerRef = useRef<HTMLDivElement>(null);
-  const branchRefs = useRef<(HTMLDivElement | null)[]>([]);
-  const childRefs = useRef<(HTMLDivElement | null)[][]>([]);
+  const boxRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const dragRef = useRef<{ startX: number; startY: number; panX: number; panY: number; active: boolean } | null>(null);
   const [scale, setScale] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [tool, setTool] = useState<PanTool>('pointer');
   const [isPanning, setIsPanning] = useState(false);
   const [collapsed, setCollapsed] = useState<Set<number>>(new Set());
-  const [branchLines, setBranchLines] = useState<ConnectorLine[]>([]);
-  const [childLines, setChildLines] = useState<ConnectorLine[]>([]);
+  const [lines, setLines] = useState<ConnectorLine[]>([]);
   const root = useMemo(() => parseOutline(outline), [outline]);
   const branches = useMemo(() => root.children.slice(0, MAX_BRANCHES), [root]);
 
-  // Radial layout with angular sectors. Each branch owns a wedge proportional
-  // to its subtree size; children fan out inside that wedge at a larger
-  // radius. Radii are computed from the box sizes so no two boxes overlap.
+  // Sunburst layout: every node (branch, child, grandchild, overflow detail)
+  // is its own box. Each box owns an angular wedge proportional to its subtree
+  // size, and children fan out inside that wedge at the next ring. Radii are
+  // derived from the box sizes so nothing overlaps and nothing scrolls.
   const layout = useMemo(() => {
     const n = branches.length;
     if (n === 0) {
-      return { stageW: 900, stageH: 700, cx: 450, cy: 350, R1: 0, R2: 0, branchPos: [], childPos: [] };
+      return { stageW: 900, stageH: 700, cx: 450, cy: 350, R1: 0, R2: 0, R3: 0, boxes: [], edges: [] };
     }
-    const weights = branches.map((b) => 1 + Math.min(b.children.length, MAX_CHILDREN));
-    const totalWeight = weights.reduce((a, b) => a + b, 0);
+
+    const boxes: BoxSpec[] = [];
+    const edges: EdgeSpec[] = [];
+    const branchMeta: {
+      weight: number;
+      children: MindNode[];
+      overflow: string[];
+      childWeights: number[];
+      childSubs: { grandchildren: MindNode[]; overflow: string[] }[];
+    }[] = [];
+
+    branches.forEach((branch, i) => {
+      const colorIndex = i;
+      const branchId = `b-${i}`;
+      const children = branch.children.slice(0, MAX_CHILDREN);
+      const overflow = branch.details.slice(BRANCH_MAX_TEXT, BRANCH_MAX_TEXT + MAX_OVERFLOW_DETAILS);
+      const childSubs = children.map((child) => ({
+        grandchildren: child.children.slice(0, MAX_GRANDCHILDREN),
+        overflow: child.details.slice(CHILD_MAX_TEXT, CHILD_MAX_TEXT + MAX_OVERFLOW_DETAILS),
+      }));
+      const childWeights = childSubs.map((s) => 1 + s.grandchildren.length + s.overflow.length);
+      const weight = 1 + children.length + overflow.length + childWeights.reduce((a, b) => a + b, 0);
+      branchMeta.push({ weight, children, overflow, childWeights, childSubs });
+
+      boxes.push({ id: branchId, type: 'branch', x: 0, y: 0, title: branch.title, details: branch.details.slice(0, BRANCH_MAX_TEXT), colorIndex, branchIndex: i, parentId: 'center' });
+      edges.push({ from: 'center', to: branchId, colorIndex, depth: 1 });
+
+      children.forEach((child, j) => {
+        const childId = `c-${i}-${j}`;
+        boxes.push({ id: childId, type: 'child', x: 0, y: 0, title: child.title, details: child.details.slice(0, CHILD_MAX_TEXT), colorIndex, branchIndex: i, parentId: branchId });
+        edges.push({ from: branchId, to: childId, colorIndex, depth: 2 });
+        childSubs[j].grandchildren.forEach((g, k) => {
+          const gid = `g-${i}-${j}-${k}`;
+          boxes.push({ id: gid, type: 'grand', x: 0, y: 0, title: g.title, details: g.details.slice(0, GRAND_MAX_TEXT), colorIndex, branchIndex: i, parentId: childId });
+          edges.push({ from: childId, to: gid, colorIndex, depth: 3 });
+        });
+        childSubs[j].overflow.forEach((d, k) => {
+          const did = `cd-${i}-${j}-${k}`;
+          boxes.push({ id: did, type: 'detail', x: 0, y: 0, title: d, details: [], colorIndex, branchIndex: i, parentId: childId });
+          edges.push({ from: childId, to: did, colorIndex, depth: 3 });
+        });
+      });
+      overflow.forEach((d, j) => {
+        const did = `bd-${i}-${j}`;
+        boxes.push({ id: did, type: 'detail', x: 0, y: 0, title: d, details: [], colorIndex, branchIndex: i, parentId: branchId });
+        edges.push({ from: branchId, to: did, colorIndex, depth: 2 });
+      });
+    });
+
+    // Angular spans (sunburst): each node's span is proportional to its
+    // subtree leaf count.
+    const totalWeight = branchMeta.reduce((a, m) => a + m.weight, 0);
     let cursor = -Math.PI / 2;
-    const sectors = branches.map((b, i) => {
-      const span = (weights[i] / totalWeight) * Math.PI * 2;
+    const branchSectors = branchMeta.map((m) => {
+      const span = (m.weight / totalWeight) * Math.PI * 2;
       const start = cursor;
       const mid = start + span / 2;
       cursor += span;
-      return { start, mid, end: start + span, childCount: Math.min(b.children.length, MAX_CHILDREN) };
+      return { start, mid, end: start + span };
     });
-    const minSector = Math.min(...sectors.map((s) => s.end - s.start));
-    // Branch ring: far enough out that adjacent branch boxes never touch.
-    const R1 = Math.max(
-      CENTER_H / 2 + BRANCH_H / 2 + 70,
-      (BRANCH_W + GAP) / (2 * Math.sin(minSector / 2)),
-    );
-    // Child ring: clears the branch boxes and keeps children inside a wedge
-    // from overlapping each other.
-    const R2 = Math.max(
-      R1 + BRANCH_H / 2 + CHILD_H / 2 + 60,
-      ...sectors.map((s) => ((CHILD_W + GAP) * (s.childCount + 1)) / (s.end - s.start)),
-    );
-    const stageW = Math.max(1000, (R2 + CHILD_W / 2 + 90) * 2);
-    const stageH = Math.max(760, (R2 + CHILD_H / 2 + 90) * 2);
-    const cx = stageW / 2;
-    const cy = stageH / 2;
-    const branchPos = sectors.map((s) => ({ x: cx + Math.cos(s.mid) * R1, y: cy + Math.sin(s.mid) * R1 }));
-    const childPos = branches.map((b, i) => {
-      const s = sectors[i];
-      const c = s.childCount;
-      return b.children.slice(0, MAX_CHILDREN).map((_, j) => {
-        const a = s.start + ((j + 1) / (c + 1)) * (s.end - s.start);
-        return { x: cx + Math.cos(a) * R2, y: cy + Math.sin(a) * R2 };
+
+    // Smallest angular span at each ring, used to size the radii so boxes
+    // never overlap.
+    const minBranchSpan = Math.min(...branchSectors.map((s) => s.end - s.start));
+    let minSubSpan = Infinity;
+    let minGrandSpan = Infinity;
+    branchMeta.forEach((m, i) => {
+      const span = branchSectors[i].end - branchSectors[i].start;
+      const subWeights = [...m.childWeights, ...m.overflow.map(() => 1)];
+      if (subWeights.length) {
+        subWeights.forEach((w) => { minSubSpan = Math.min(minSubSpan, (w / m.weight) * span); });
+      }
+      m.childSubs.forEach((s, j) => {
+        const childSpan = (m.childWeights[j] / m.weight) * span;
+        const grandWeights = [...s.grandchildren.map(() => 1), ...s.overflow.map(() => 1)];
+        if (grandWeights.length) {
+          grandWeights.forEach((w) => { minGrandSpan = Math.min(minGrandSpan, (w / m.childWeights[j]) * childSpan); });
+        }
       });
     });
-    return { stageW, stageH, cx, cy, R1, R2, branchPos, childPos };
+
+    const R1 = Math.max(
+      CENTER_H / 2 + BRANCH_H / 2 + 70,
+      (BRANCH_W + GAP) / (2 * Math.sin(minBranchSpan / 2)),
+    );
+    const R2 = Math.max(
+      R1 + BRANCH_H / 2 + CHILD_H / 2 + 50,
+      Number.isFinite(minSubSpan) ? (CHILD_W + GAP) / (2 * Math.sin(minSubSpan / 2)) : 0,
+    );
+    const R3 = Math.max(
+      R2 + CHILD_H / 2 + GRAND_H / 2 + 70,
+      Number.isFinite(minGrandSpan) ? (GRAND_W + GAP * 1.5) / (2 * Math.sin(minGrandSpan / 2)) : 0,
+    );
+
+    const stageW = Math.max(1000, (R3 + GRAND_W / 2 + 90) * 2);
+    const stageH = Math.max(760, (R3 + GRAND_H / 2 + 90) * 2);
+    const cx = stageW / 2;
+    const cy = stageH / 2;
+    const pos = (angle: number, radius: number) => ({ x: cx + Math.cos(angle) * radius, y: cy + Math.sin(angle) * radius });
+    const boxById = new Map(boxes.map((b) => [b.id, b]));
+
+    branchMeta.forEach((m, i) => {
+      const sector = branchSectors[i];
+      const branchBox = boxById.get(`b-${i}`)!;
+      branchBox.x = pos(sector.mid, R1).x;
+      branchBox.y = pos(sector.mid, R1).y;
+
+      // Sub-nodes (children + overflow details) spread across the wedge.
+      const subWeights = [...m.childWeights, ...m.overflow.map(() => 1)];
+      let offset = 0;
+      const subAngles = subWeights.map((w) => {
+        const a = sector.start + ((offset + w / 2) / m.weight) * (sector.end - sector.start);
+        offset += w;
+        return a;
+      });
+
+      m.children.forEach((child, j) => {
+        const childBox = boxById.get(`c-${i}-${j}`)!;
+        const a = subAngles[j];
+        childBox.x = pos(a, R2).x;
+        childBox.y = pos(a, R2).y;
+
+        // Grandchildren + child overflow within the child's sub-wedge.
+        const childSpan = (m.childWeights[j] / m.weight) * (sector.end - sector.start);
+        const childStart = a - childSpan / 2;
+        const grandWeights = [...m.childSubs[j].grandchildren.map(() => 1), ...m.childSubs[j].overflow.map(() => 1)];
+        let goffset = 0;
+        grandWeights.forEach((w, k) => {
+          const ga = childStart + ((goffset + w / 2) / m.childWeights[j]) * childSpan;
+          const gid = k < m.childSubs[j].grandchildren.length
+            ? `g-${i}-${j}-${k}`
+            : `cd-${i}-${j}-${k - m.childSubs[j].grandchildren.length}`;
+          const gBox = boxById.get(gid)!;
+          gBox.x = pos(ga, R3).x;
+          gBox.y = pos(ga, R3).y;
+          goffset += w;
+        });
+      });
+
+      m.overflow.forEach((d, j) => {
+        const dBox = boxById.get(`bd-${i}-${j}`)!;
+        const a = subAngles[m.children.length + j];
+        dBox.x = pos(a, R2).x;
+        dBox.y = pos(a, R2).y;
+      });
+    });
+
+    return { stageW, stageH, cx, cy, R1, R2, R3, boxes, edges };
   }, [branches]);
+
+  // Only render boxes/edges that aren't under a collapsed branch.
+  const visibleBoxes = useMemo(() => {
+    if (collapsed.size === 0) return layout.boxes;
+    return layout.boxes.filter((b) => {
+      if (b.type === 'branch') return true;           // branch card itself always visible
+      return !collapsed.has(b.branchIndex);            // hide children when collapsed
+    });
+  }, [layout, collapsed]);
+  const visibleEdges = useMemo(() => {
+    if (collapsed.size === 0) return layout.edges;
+    const ids = new Set(visibleBoxes.map((b) => b.id));
+    return layout.edges.filter((e) => ids.has(e.from) && ids.has(e.to));
+  }, [layout, collapsed, visibleBoxes]);
 
   // Measure the actual rendered boxes and compute connector lines that touch
   // each box's edge exactly. Normalising by the map's rendered size keeps the
@@ -193,9 +348,8 @@ export function MindmapV2Panel({ transcript, outline, isGenerating, error, onGen
   useLayoutEffect(() => {
     const map = mapRef.current;
     const center = centerRef.current;
-    if (!map || !center || branches.length === 0) {
-      setBranchLines([]);
-      setChildLines([]);
+    if (!map || !center || visibleBoxes.length === 0) {
+      setLines([]);
       return;
     }
     const mapRect = map.getBoundingClientRect();
@@ -208,32 +362,24 @@ export function MindmapV2Panel({ transcript, outline, isGenerating, error, onGen
       h: rect.height * ky,
     });
     const centerRect = toLocal(center.getBoundingClientRect());
-    const nextBranch: ConnectorLine[] = [];
-    const nextChild: ConnectorLine[] = [];
-    branches.forEach((_, i) => {
-      const el = branchRefs.current[i];
-      if (!el) return;
-      const rect = toLocal(el.getBoundingClientRect());
-      const dx = rect.x + rect.w / 2 - (centerRect.x + centerRect.w / 2);
-      const dy = rect.y + rect.h / 2 - (centerRect.y + centerRect.h / 2);
-      const start = edgePoint(centerRect, dx, dy);
-      const end = edgePoint(rect, -dx, -dy);
-      nextBranch.push({ x1: start.x, y1: start.y, x2: end.x, y2: end.y, colorIndex: i, ...curvePoints(start.x, start.y, end.x, end.y) });
-      // Child connectors: branch box -> child box.
-      branches[i].children.slice(0, MAX_CHILDREN).forEach((_, j) => {
-        const childEl = childRefs.current[i]?.[j];
-        if (!childEl) return;
-        const crect = toLocal(childEl.getBoundingClientRect());
-        const cdx = crect.x + crect.w / 2 - (rect.x + rect.w / 2);
-        const cdy = crect.y + crect.h / 2 - (rect.y + rect.h / 2);
-        const cstart = edgePoint(rect, cdx, cdy);
-        const cend = edgePoint(crect, -cdx, -cdy);
-        nextChild.push({ x1: cstart.x, y1: cstart.y, x2: cend.x, y2: cend.y, colorIndex: i, ...curvePoints(cstart.x, cstart.y, cend.x, cend.y) });
-      });
+    const rects = new Map<string, { x: number; y: number; w: number; h: number }>();
+    visibleBoxes.forEach((box) => {
+      const el = boxRefs.current[box.id];
+      if (el) rects.set(box.id, toLocal(el.getBoundingClientRect()));
     });
-    setBranchLines(nextBranch);
-    setChildLines(nextChild);
-  }, [branches, collapsed, layout]);
+    const next: ConnectorLine[] = [];
+    visibleEdges.forEach((edge) => {
+      const fromRect = edge.from === 'center' ? centerRect : rects.get(edge.from);
+      const toRect = rects.get(edge.to);
+      if (!fromRect || !toRect) return;
+      const dx = toRect.x + toRect.w / 2 - (fromRect.x + fromRect.w / 2);
+      const dy = toRect.y + toRect.h / 2 - (fromRect.y + fromRect.h / 2);
+      const start = edgePoint(fromRect, dx, dy);
+      const end = edgePoint(toRect, -dx, -dy);
+      next.push({ x1: start.x, y1: start.y, x2: end.x, y2: end.y, colorIndex: edge.colorIndex, depth: edge.depth, ...curvePoints(start.x, start.y, end.x, end.y) });
+    });
+    setLines(next);
+  }, [visibleBoxes, visibleEdges, layout]);
 
   const toggleBranch = (index: number) => setCollapsed((current) => {
     const next = new Set(current);
@@ -340,7 +486,7 @@ export function MindmapV2Panel({ transcript, outline, isGenerating, error, onGen
       </div>
       {error && <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="m-4 rounded-xl border border-red-200/80 bg-red-50/80 p-3 text-sm text-red-700 dark:border-red-800/60 dark:bg-red-900/30 dark:text-red-300">{error}</motion.div>}
       <div className="min-h-0 flex-1 overflow-auto bg-slate-950/[.02] dark:bg-slate-950/30">
-        {isGenerating ? <div className="flex h-full items-center justify-center gap-3 text-gray-500 dark:text-gray-400"><Spinner /><span className="text-sm">Generating mindmap outline…</span></div> : outline ? <div ref={viewportRef} onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={endDrag} onMouseLeave={endDrag} className={cn('mindmap-v2-viewport', tool === 'hand' ? (isPanning ? 'cursor-grabbing' : 'cursor-grab') : 'cursor-default')}><div ref={mapRef} className="mindmap-v2" style={{ width: layout.stageW, height: layout.stageH, transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})`, transformOrigin: 'center center', transition: isPanning ? 'none' : undefined }}><svg key={outline} className="mindmap-lines" viewBox={`0 0 ${layout.stageW} ${layout.stageH}`} preserveAspectRatio="none" aria-hidden="true"><defs>{COLORS.slice(0, branches.length).map((c, i) => (<marker key={i} id={`mmv2-arrow-${i}`} viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill={c} /></marker>))}</defs><circle className="mindmap-ring" cx={layout.cx} cy={layout.cy} r={Math.min(150, layout.R1 * 0.4)} fill="none" stroke="rgba(99,102,241,.28)" strokeWidth="1.5" />{branchLines.map((line, i) => (<path key={`b-${i}`} className="mindmap-link" d={`M ${line.x1} ${line.y1} C ${line.c1x} ${line.c1y}, ${line.c2x} ${line.c2y}, ${line.x2} ${line.y2}`} fill="none" stroke={COLORS[line.colorIndex % COLORS.length]} strokeWidth="2.5" strokeOpacity=".6" markerEnd={`url(#mmv2-arrow-${line.colorIndex % COLORS.length})`} />))}{childLines.map((line, i) => (<path key={`c-${i}`} className="mindmap-link mindmap-link-child" d={`M ${line.x1} ${line.y1} C ${line.c1x} ${line.c1y}, ${line.c2x} ${line.c2y}, ${line.x2} ${line.y2}`} fill="none" stroke={COLORS[line.colorIndex % COLORS.length]} strokeWidth="1.8" strokeOpacity=".55" markerEnd={`url(#mmv2-arrow-${line.colorIndex % COLORS.length})`} />))}</svg><div ref={centerRef} className="mindmap-center" data-export-card data-color="#818cf8" data-title={root.title}><span className="mb-2 text-2xl">🧠</span><strong>{root.title}</strong>{root.details.slice(0, 2).map((detail) => <span key={detail}>{detail}</span>)}</div>{branches.map((branch, index) => <div key={`${branch.title}-${index}`} ref={(el) => { branchRefs.current[index] = el; }} className="mindmap-branch-slot" style={{ left: layout.branchPos[index].x, top: layout.branchPos[index].y }}><section className="mindmap-branch" style={{ '--branch-color': COLORS[index % COLORS.length] } as CSSProperties} data-export-card data-color={COLORS[index % COLORS.length]} data-title={branch.title}><button type="button" className="mindmap-branch-head" onClick={() => toggleBranch(index)} aria-expanded={!collapsed.has(index)}><span className="mindmap-emoji">{EMOJIS[index % EMOJIS.length]}</span><span className="min-w-0 flex-1 text-left"><small>Branch {String(index + 1).padStart(2, '0')}</small><strong>{branchLabel(branch.title)}</strong></span>{collapsed.has(index) ? <ChevronRight className="h-4 w-4 shrink-0" /> : <ChevronDown className="h-4 w-4 shrink-0" />}</button>{!collapsed.has(index) && <div className="mindmap-details">{branch.details.slice(0, MAX_DETAILS).map((detail) => <p key={detail}><span>•</span>{detail}</p>)}</div>}</section></div>)}{branches.map((branch, index) => !collapsed.has(index) && branch.children.slice(0, MAX_CHILDREN).map((child, j) => <div key={`${branch.title}-${child.title}-${j}`} ref={(el) => { if (!childRefs.current[index]) childRefs.current[index] = []; childRefs.current[index][j] = el; }} className="mindmap-child-slot" style={{ left: layout.childPos[index][j].x, top: layout.childPos[index][j].y }}><section className="mindmap-child-card" style={{ '--branch-color': COLORS[index % COLORS.length] } as CSSProperties} data-export-card data-color={COLORS[index % COLORS.length]} data-title={child.title}><strong>{branchLabel(child.title)}</strong>{child.details.slice(0, MAX_CHILD_DETAILS).map((detail) => <p key={detail}><span>•</span>{detail}</p>)}</section></div>))}</div></div> : <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex h-full flex-col items-center justify-center gap-2 p-8 text-center"><Network className="h-10 w-10 text-gray-300 dark:text-gray-600" /><p className="text-sm text-gray-500 dark:text-gray-400">Generate a radial mindmap to visualize the transcript’s core concepts.</p></motion.div>}
+        {isGenerating ? <div className="flex h-full items-center justify-center gap-3 text-gray-500 dark:text-gray-400"><Spinner /><span className="text-sm">Generating mindmap outline…</span></div> : outline ? <div ref={viewportRef} onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={endDrag} onMouseLeave={endDrag} className={cn('mindmap-v2-viewport', tool === 'hand' ? (isPanning ? 'cursor-grabbing' : 'cursor-grab') : 'cursor-default')}><div ref={mapRef} className="mindmap-v2" style={{ width: layout.stageW, height: layout.stageH, transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})`, transformOrigin: 'center center', transition: isPanning ? 'none' : undefined }}><svg key={outline} className="mindmap-lines" viewBox={`0 0 ${layout.stageW} ${layout.stageH}`} preserveAspectRatio="none" aria-hidden="true"><defs>{COLORS.slice(0, branches.length).map((c, i) => (<marker key={i} id={`mmv2-arrow-${i}`} viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill={c} /></marker>))}</defs><circle className="mindmap-ring" cx={layout.cx} cy={layout.cy} r={Math.min(150, layout.R1 * 0.4)} fill="none" stroke="rgba(99,102,241,.28)" strokeWidth="1.5" />{lines.map((line, i) => (<path key={i} className={cn('mindmap-link', line.depth > 1 && 'mindmap-link-child')} d={`M ${line.x1} ${line.y1} C ${line.c1x} ${line.c1y}, ${line.c2x} ${line.c2y}, ${line.x2} ${line.y2}`} fill="none" stroke={COLORS[line.colorIndex % COLORS.length]} strokeWidth={line.depth > 1 ? 1.8 : 2.5} strokeOpacity=".6" markerEnd={`url(#mmv2-arrow-${line.colorIndex % COLORS.length})`} />))}</svg><div ref={centerRef} className="mindmap-center" data-export-card data-color="#818cf8" data-title={root.title}><span className="mb-2 text-2xl">🧠</span><strong>{root.title}</strong>{root.details.slice(0, 2).map((detail) => <span key={detail}>{detail}</span>)}</div>{visibleBoxes.map((box) => <div key={box.id} ref={(el) => { boxRefs.current[box.id] = el; }} className={box.type === 'branch' ? 'mindmap-branch-slot' : box.type === 'child' ? 'mindmap-child-slot' : 'mindmap-grand-slot'} style={{ left: box.x, top: box.y }}><section className={box.type === 'branch' ? 'mindmap-branch' : box.type === 'child' ? 'mindmap-child-card' : box.type === 'grand' ? 'mindmap-grand-card' : 'mindmap-detail-card'} style={{ '--branch-color': COLORS[box.colorIndex % COLORS.length] } as CSSProperties} data-export-card data-color={COLORS[box.colorIndex % COLORS.length]} data-title={box.title}>{box.type === 'branch' ? <button type="button" className="mindmap-branch-head" onClick={() => toggleBranch(box.branchIndex)} aria-expanded={!collapsed.has(box.branchIndex)}><span className="mindmap-emoji">{EMOJIS[box.colorIndex % EMOJIS.length]}</span><span className="min-w-0 flex-1 text-left"><small>Branch {String(box.branchIndex + 1).padStart(2, '0')}</small><strong>{branchLabel(box.title)}</strong></span>{collapsed.has(box.branchIndex) ? <ChevronRight className="h-4 w-4 shrink-0" /> : <ChevronDown className="h-4 w-4 shrink-0" />}</button> : <strong className="mindmap-box-title">{branchLabel(box.title)}</strong>}{box.type !== 'branch' || !collapsed.has(box.branchIndex) ? box.details.length > 0 && <div className="mindmap-details">{box.details.map((detail) => <p key={detail}><span>•</span>{detail}</p>)}</div> : null}</section></div>)}</div></div> : <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex h-full flex-col items-center justify-center gap-2 p-8 text-center"><Network className="h-10 w-10 text-gray-300 dark:text-gray-600" /><p className="text-sm text-gray-500 dark:text-gray-400">Generate a radial mindmap to visualize the transcript’s core concepts.</p></motion.div>}
       </div>
     </div>
   );

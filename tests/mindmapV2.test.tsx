@@ -30,6 +30,11 @@ function rectStub(this: Element): DOMRect {
     const top = parseFloat(el.style.top || '450');
     return makeRect(left - 85, top - 50, 170, 100);
   }
+  if (el.classList?.contains('mindmap-grand-slot')) {
+    const left = parseFloat(el.style.left || '600');
+    const top = parseFloat(el.style.top || '450');
+    return makeRect(left - 75, top - 36, 150, 72);
+  }
   return makeRect(0, 0, 0, 0);
 }
 
@@ -118,9 +123,11 @@ describe('MindmapV2Panel', () => {
     expect(firstHead).toBeTruthy();
     expect(firstHead.getAttribute('aria-expanded')).toBe('true');
     fireEvent.click(firstHead);
-    expect(firstHead.getAttribute('aria-expanded')).toBe('false');
+    // Re-query after re-render — the DOM node is replaced by React.
+    const updatedHead = container.querySelector('.mindmap-branch-head') as HTMLButtonElement;
+    expect(updatedHead.getAttribute('aria-expanded')).toBe('false');
     // The details section for that card is removed when collapsed.
-    const firstBranch = firstHead.closest('.mindmap-branch') as HTMLElement;
+    const firstBranch = updatedHead.closest('.mindmap-branch') as HTMLElement;
     expect(firstBranch.querySelector('.mindmap-details')).toBeNull();
   });
 
@@ -129,5 +136,26 @@ describe('MindmapV2Panel', () => {
       <MindmapV2Panel transcript={null} outline="" isGenerating={false} error={null} onGenerate={vi.fn()} />,
     );
     expect(screen.getByText(/Generate a radial mindmap/i)).toBeTruthy();
+  });
+
+  it('renders grandchildren and overflow detail boxes for deep outlines', () => {
+    const deepOutline = ['# Main Topic',
+      '## Branch A\n- Detail A1\n- Detail A2\n- Detail A3\n- Detail A4\n### Child A.1\n- Child detail A.1.1\n- Child detail A.1.2\n- Child detail A.1.3\n#### Grand A.1.1\n#### Grand A.1.2',
+      '## Branch B\n- Detail B1\n- Detail B2\n- Detail B3\n- Detail B4\n### Child B.1\n- Child detail B.1.1\n- Child detail B.1.2\n- Child detail B.1.3\n#### Grand B.1.1\n#### Grand B.1.2',
+    ].join('\n');
+    const { container } = render(
+      <MindmapV2Panel transcript={null} outline={deepOutline} isGenerating={false} error={null} onGenerate={vi.fn()} />,
+    );
+    // 2 branch cards, 2 child cards, 4 grandchild cards, 2 branch overflow + 2 child overflow detail cards
+    expect(container.querySelectorAll('.mindmap-branch').length).toBe(2);
+    expect(container.querySelectorAll('.mindmap-child-card').length).toBe(2);
+    expect(container.querySelectorAll('.mindmap-grand-card').length).toBe(4);
+    expect(container.querySelectorAll('.mindmap-detail-card').length).toBeGreaterThanOrEqual(2);
+    // All arrows valid, no NaN
+    container.querySelectorAll('.mindmap-link').forEach((path) => {
+      const d = path.getAttribute('d') ?? '';
+      expect(d).toContain('M ');
+      expect(d).not.toContain('NaN');
+    });
   });
 });
