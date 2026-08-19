@@ -25,6 +25,8 @@ export interface Session {
   summaries: Summary[];
   chatMessages: ChatMessage[];
   mindmapOutline?: string;
+  /** Semantic knowledge tree for the radial knowledge map (V2). */
+  knowledgeTree?: import('./knowledgeMap').KnowledgeTree;
   updatedAt: number;
   createdAt: number;
 }

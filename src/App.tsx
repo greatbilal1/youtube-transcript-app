@@ -16,6 +16,7 @@ import { useTranscript } from './hooks/useTranscript';
 import { useChat } from './hooks/useChat';
 import { useSummary } from './hooks/useSummary';
 import { useMindmap } from './hooks/useMindmap';
+import { useKnowledgeMap } from './hooks/useKnowledgeMap';
 import { useHistory } from './hooks/useHistory';
 import { useTheme } from './hooks/useTheme';
 import type { Session, Summary, Transcript } from './types';
@@ -50,6 +51,7 @@ export default function App() {
   const chatHook = useChat(transcript, session, settings);
   const summaryHook = useSummary(transcript, session, settings);
   const mindmapHook = useMindmap(transcript, session, settings);
+  const knowledgeMapHook = useKnowledgeMap(transcript, session, settings);
   const historyHook = useHistory();
 
   /** Fire a Sonner toast for a user-facing message. */
@@ -139,6 +141,14 @@ export default function App() {
     // summary/chat that may have been added by a concurrent operation.
     await refreshSession(s.id);
   }, [transcript, session, ensureSession, mindmapHook, refreshSession]);
+
+  const handleGenerateKnowledgeMap = useCallback(async () => {
+    if (!transcript) return;
+    const s = session ?? (await ensureSession(transcript));
+    if (!s) return;
+    await knowledgeMapHook.generate(s);
+    await refreshSession(s.id);
+  }, [transcript, session, ensureSession, knowledgeMapHook, refreshSession]);
 
   /** Map a timestamp (seconds) to a transcript segment index and highlight it. */
   const handleTimestampClick = useCallback(
@@ -344,10 +354,11 @@ export default function App() {
                   >
                     <MindmapV2Panel
                       transcript={transcript}
-                      outline={mindmapHook.outline}
-                      isGenerating={mindmapHook.isGenerating}
-                      error={mindmapHook.error}
-                      onGenerate={handleGenerateMindmap}
+                      tree={knowledgeMapHook.tree}
+                      isGenerating={knowledgeMapHook.isGenerating}
+                      error={knowledgeMapHook.error}
+                      onGenerate={handleGenerateKnowledgeMap}
+                      onTreeChange={knowledgeMapHook.updateTree}
                     />
                   </Suspense>
                 </motion.div>

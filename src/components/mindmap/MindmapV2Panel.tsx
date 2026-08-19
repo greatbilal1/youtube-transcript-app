@@ -1,37 +1,49 @@
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import { Network } from 'lucide-react';
 import { motion } from 'framer-motion';
 import type { Transcript } from '../../types';
-import { MarkmapView } from './MarkmapView';
+import type { KnowledgeTree } from '../../types/knowledgeMap';
+import { RadialMindmap } from './RadialMindmap';
 import { MindmapControls } from './MindmapControls';
 import { Spinner } from '../common/Spinner';
 import { downloadBlob } from '../../utils/download';
+import { useTheme } from '../../hooks/useTheme';
 
 interface MindmapV2PanelProps {
   transcript: Transcript | null;
-  outline: string;
+  tree: KnowledgeTree | null;
   isGenerating: boolean;
   error: string | null;
   onGenerate: () => void;
+  onTreeChange: (tree: KnowledgeTree) => void;
 }
+
+/** Canvas size for the radial map (16:9). */
+const CANVAS_WIDTH = 1280;
+const CANVAS_HEIGHT = 720;
 
 export function MindmapV2Panel({
   transcript,
-  outline,
+  tree,
   isGenerating,
   error,
   onGenerate,
+  onTreeChange,
 }: MindmapV2PanelProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
+
   const handleExportSvg = useCallback(() => {
-    const svg = document.querySelector('#mindmap-v2-container svg');
+    const svg = containerRef.current?.querySelector('svg[data-radial-mindmap]');
     if (!svg) return;
     const xml = new XMLSerializer().serializeToString(svg);
     const blob = new Blob([xml], { type: 'image/svg+xml;charset=utf-8' });
-    downloadBlob(blob, `${transcript?.title ?? 'mindmap'}.svg`);
+    downloadBlob(blob, `${transcript?.title ?? 'knowledge-map'}.svg`);
   }, [transcript]);
 
   const handleExportPng = useCallback(() => {
-    const svg = document.querySelector('#mindmap-v2-container svg') as SVGSVGElement | null;
+    const svg = containerRef.current?.querySelector('svg[data-radial-mindmap]') as SVGSVGElement | null;
     if (!svg) return;
     const xml = new XMLSerializer().serializeToString(svg);
     const svgBlob = new Blob([xml], { type: 'image/svg+xml;charset=utf-8' });
@@ -41,20 +53,20 @@ export function MindmapV2Panel({
     img.onload = () => {
       const canvas = document.createElement('canvas');
       const scale = 2;
-      canvas.width = svg.clientWidth * scale;
-      canvas.height = svg.clientHeight * scale;
+      canvas.width = CANVAS_WIDTH * scale;
+      canvas.height = CANVAS_HEIGHT * scale;
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
-      ctx.fillStyle = '#ffffff';
+      ctx.fillStyle = isDark ? '#0f172a' : '#ffffff';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
       URL.revokeObjectURL(url);
       canvas.toBlob((blob) => {
-        if (blob) downloadBlob(blob, `${transcript?.title ?? 'mindmap'}.png`);
+        if (blob) downloadBlob(blob, `${transcript?.title ?? 'knowledge-map'}.png`);
       }, 'image/png');
     };
     img.src = url;
-  }, [transcript]);
+  }, [transcript, isDark]);
 
   return (
     <div className="flex h-full flex-col">
@@ -71,7 +83,7 @@ export function MindmapV2Panel({
             onExportSvg={handleExportSvg}
             onExportPng={handleExportPng}
             isGenerating={isGenerating}
-            hasOutline={!!outline}
+            hasOutline={!!tree}
             disabled={!transcript}
           />
         </div>
@@ -91,14 +103,17 @@ export function MindmapV2Panel({
         {isGenerating ? (
           <div className="flex h-full items-center justify-center gap-3 text-gray-500 dark:text-gray-400">
             <Spinner />
-            <span className="text-sm">Generating mindmap outline…</span>
+            <span className="text-sm">Analyzing structure and building knowledge map…</span>
           </div>
-        ) : outline ? (
-          <div id="mindmap-v2-container" className="h-full w-full">
-            {/* No mindmap content yet — the page is identical to the Mindmap
-                tab (same window, tools, sizing, open/close) but the
-                visualization itself is intentionally left blank for now. */}
-            <MarkmapView markdown="" />
+        ) : tree ? (
+          <div ref={containerRef} className="h-full w-full">
+            <RadialMindmap
+              tree={tree}
+              width={CANVAS_WIDTH}
+              height={CANVAS_HEIGHT}
+              isDark={isDark}
+              onTreeChange={onTreeChange}
+            />
           </div>
         ) : (
           <motion.div
@@ -108,7 +123,8 @@ export function MindmapV2Panel({
           >
             <Network className="h-10 w-10 text-gray-300 dark:text-gray-600" />
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              Generate a mindmap to visualize the transcript's core concepts.
+              Generate a semantic knowledge map to visualize the transcript's concepts,
+              themes, and relationships.
             </p>
           </motion.div>
         )}
