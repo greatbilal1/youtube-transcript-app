@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from '@testing-library/react';
-import { RadialMindmap } from '../src/components/mindmap/RadialMindmap';
+import { RadialMindmap } from '../src/components/mindmap/v2/RadialMindmap';
 import type { KnowledgeTree } from '../src/types/knowledgeMap';
 
 // jsdom has no canvas getContext; the layout engine falls back to a

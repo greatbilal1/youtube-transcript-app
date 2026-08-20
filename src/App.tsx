@@ -25,10 +25,10 @@ import { getSession, getTranscript } from './lib/storage/sessionStore';
 // The markmap chunk is large (~235 kB gzip). Lazy-load it so it's only
 // fetched when the user actually opens the Mindmap tab.
 const MindmapPanel = lazy(() =>
-  import('./components/mindmap/MindmapPanel').then((m) => ({ default: m.MindmapPanel })),
+  import('./components/mindmap/v1/MindmapPanel').then((m) => ({ default: m.MindmapPanel })),
 );
 const MindmapV2Panel = lazy(() =>
-  import('./components/mindmap/MindmapV2Panel').then((m) => ({ default: m.MindmapV2Panel })),
+  import('./components/mindmap/v2/MindmapV2Panel').then((m) => ({ default: m.MindmapV2Panel })),
 );
 
 type TabId = 'summarize' | 'mindmap' | 'mindmap-v2';

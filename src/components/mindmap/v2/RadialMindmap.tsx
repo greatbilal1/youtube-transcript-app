@@ -4,9 +4,9 @@ import type {
   KnowledgeNode,
   KnowledgeTree,
   LayoutNode,
-} from '../../types/knowledgeMap';
-import { computeLayout } from '../../lib/mindmap/layout';
-import { getTypeVisual } from '../../lib/mindmap/icons';
+} from '../../../types/knowledgeMap';
+import { computeLayout } from '../../../lib/mindmap/layout';
+import { getTypeVisual } from '../../../lib/mindmap/icons';
 
 interface RadialMindmapProps {
   tree: KnowledgeTree;

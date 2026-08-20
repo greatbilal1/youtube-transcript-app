@@ -4,7 +4,7 @@ import { Markmap } from 'markmap-view';
 import { walkTree } from 'markmap-common';
 import { zoomIdentity } from 'd3';
 import { ZoomIn, ZoomOut, Maximize, ListTree, ListCollapse, Hand, MousePointer2 } from 'lucide-react';
-import { cn } from '../../utils/cn';
+import { cn } from '../../../utils/cn';
 
 type PanTool = 'pointer' | 'hand';
 

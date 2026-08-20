@@ -1,11 +1,11 @@
 import { useCallback } from 'react';
 import { Network } from 'lucide-react';
 import { motion } from 'framer-motion';
-import type { Transcript } from '../../types';
+import type { Transcript } from '../../../types';
 import { MarkmapView } from './MarkmapView';
-import { MindmapControls } from './MindmapControls';
-import { Spinner } from '../common/Spinner';
-import { downloadBlob } from '../../utils/download';
+import { MindmapControls } from '../MindmapControls';
+import { Spinner } from '../../common/Spinner';
+import { downloadBlob } from '../../../utils/download';
 
 interface MindmapPanelProps {
   transcript: Transcript | null;

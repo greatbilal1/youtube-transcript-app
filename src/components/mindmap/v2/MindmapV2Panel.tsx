@@ -1,13 +1,13 @@
 import { useCallback, useRef } from 'react';
 import { Network } from 'lucide-react';
 import { motion } from 'framer-motion';
-import type { Transcript } from '../../types';
-import type { KnowledgeTree } from '../../types/knowledgeMap';
+import type { Transcript } from '../../../types';
+import type { KnowledgeTree } from '../../../types/knowledgeMap';
 import { RadialMindmap } from './RadialMindmap';
-import { MindmapControls } from './MindmapControls';
-import { Spinner } from '../common/Spinner';
-import { downloadBlob } from '../../utils/download';
-import { useTheme } from '../../hooks/useTheme';
+import { MindmapControls } from '../MindmapControls';
+import { Spinner } from '../../common/Spinner';
+import { downloadBlob } from '../../../utils/download';
+import { useTheme } from '../../../hooks/useTheme';
 
 interface MindmapV2PanelProps {
   transcript: Transcript | null;

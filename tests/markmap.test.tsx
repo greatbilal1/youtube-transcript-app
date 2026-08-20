@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, waitFor } from '@testing-library/react';
-import { MarkmapView } from '../src/components/mindmap/MarkmapView';
+import { MarkmapView } from '../src/components/mindmap/v1/MarkmapView';
 
 // jsdom has no ResizeObserver; provide a minimal stub.
 class ResizeObserverStub {
