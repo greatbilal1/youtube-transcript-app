@@ -40,4 +40,6 @@ export const DEFAULT_SETTINGS: SettingsState = {
   activeProviderId: 'deepinfra',
   temperature: 0.3,
   maxTokens: 2048,
+  // API keys stay in memory unless the user explicitly opts in to storing them.
+  rememberApiKeys: false,
 };

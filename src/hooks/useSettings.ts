@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { ProviderConfig, ProviderId, SettingsState } from '../types';
+import { DEFAULT_SETTINGS } from '../config/providers';
 import { loadSettings, saveSettings } from '../lib/storage/settingsStore';
 
 /**
@@ -38,8 +39,14 @@ export function useSettings() {
     setSettings((prev) => ({ ...prev, maxTokens }));
   }, []);
 
+  /** Opt in or out of storing API keys on disk. */
+  const setRememberApiKeys = useCallback((rememberApiKeys: boolean) => {
+    setSettings((prev) => ({ ...prev, rememberApiKeys }));
+  }, []);
+
+  /** Restore the shipped defaults, discarding configured base URLs and API keys. */
   const resetSettings = useCallback(() => {
-    setSettings(loadSettings());
+    setSettings(structuredClone(DEFAULT_SETTINGS));
   }, []);
 
   return {
@@ -48,6 +55,7 @@ export function useSettings() {
     setActiveProvider,
     setTemperature,
     setMaxTokens,
+    setRememberApiKeys,
     resetSettings,
   };
 }

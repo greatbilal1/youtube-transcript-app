@@ -1,5 +1,7 @@
 # Codebase Audit — YouTube Transcript Summarizer
 
+> **Status: historical record.** This audit was written against an earlier revision of the app and is kept as a record of what was found. **Every code-level item below has since been fixed** — see [Resolution Status](#6-resolution-status) at the end. It does **not** describe the current codebase; use [PROJECT_MAP.md](PROJECT_MAP.md) for current architecture.
+
 Comprehensive review performed by an advisory board across bug-detection, performance, security, architecture, and UI/UX dimensions.
 
 ---
@@ -123,3 +125,25 @@ The app depends on `uuid` though `crypto.randomUUID()` is universally supported 
 8. **Add an `AbortSignal` to `ChatOptions`** as a first-class part of the LLM interface so all providers support cancellation uniformly (currently a per-client concern).
 9. **IndexedDB text-search index** for sessions to keep search O(indexed) as history grows.
 10. **Reconcile docs** — collapse `PROJECT_MAP.md`/`README.md` duplication, update the test count, and gitignore `*.tsbuildinfo`.
+
+---
+
+## 6. Resolution Status
+
+Verified against the current source. Each item lists where the fix lives.
+
+| Item | Status | Where |
+|------|--------|-------|
+| CRITICAL-1 — chat prompt sent as `assistant` | ✅ Fixed | `ChatRole` now includes `'system'` ([src/types/summary.ts:11](src/types/summary.ts#L11)); the prompt is built as a system message ([src/hooks/useChat.ts:93](src/hooks/useChat.ts#L93)) |
+| CRITICAL-2 — Stop button was a no-op | ✅ Fixed | Controller created per request and its `signal` passed through ([src/hooks/useChat.ts:98-112](src/hooks/useChat.ts#L98-L112)); `signal` is part of `ChatOptions` and reaches both clients' `fetch` calls |
+| HIGH-3 — no-op "Save to History" | ✅ Fixed | The button was removed; summaries auto-save on generation and `ActionBar` documents this ([src/components/summarize/ActionBar.tsx](src/components/summarize/ActionBar.tsx)) |
+| Markmap chunk in the initial bundle | ✅ Fixed | The mindmap panel is `React.lazy`-loaded ([src/App.tsx:26-28](src/App.tsx#L26-L28)) |
+| `sendMessage` depended on `messages` | ✅ Fixed | Dependency array is now `[input, transcript, session, settings, isStreaming]` ([src/hooks/useChat.ts:175](src/hooks/useChat.ts#L175)) |
+| Search re-queried on every keystroke | ✅ Fixed | 250 ms debounce ([src/hooks/useHistory.ts:41](src/hooks/useHistory.ts#L41)) |
+| `mergeSegments` mutated in place | ✅ Fixed | Builds a fresh object instead of assigning to `last.text` |
+| Missing `aria-label`s on icon buttons | ✅ Fixed | `MarkmapView` now carries 7 `aria-label`s |
+| `alert()` for file validation | ✅ Fixed | No `alert(` remains in `src/`; `DropZone` shows an inline error |
+| Docs drift (test counts, duplication) | ✅ Fixed | `PROJECT_MAP.md` and `README.md` reconciled; `*.tsbuildinfo` is gitignored |
+| Native `crypto.randomUUID()` over `uuid` | ⏸️ Deliberately not actioned | `crypto.randomUUID()` is unavailable in non-secure contexts, so serving the built app over plain HTTP on a LAN address would break ID generation. `uuid` works everywhere and is ~1 kB. |
+
+Beyond the original list, a later review added: hardened settings parsing that rejects non-object JSON and merges per provider, and test coverage for the SSE/NDJSON stream parsers.

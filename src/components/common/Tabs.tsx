@@ -1,3 +1,4 @@
+import { motion } from 'framer-motion';
 import { cn } from '../../utils/cn';
 
 export interface TabItem {
@@ -14,22 +15,34 @@ interface TabsProps {
 
 export function Tabs({ tabs, active, onChange }: TabsProps) {
   return (
-    <div className="flex gap-1 rounded-lg bg-gray-100 p-1 dark:bg-gray-800">
-      {tabs.map((tab) => (
-        <button
-          key={tab.id}
-          onClick={() => onChange(tab.id)}
-          className={cn(
-            'flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
-            active === tab.id
-              ? 'bg-white text-brand-700 shadow-sm dark:bg-gray-700 dark:text-brand-300'
-              : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200',
-          )}
-        >
-          {tab.icon}
-          {tab.label}
-        </button>
-      ))}
+    <div className="glass inline-flex items-center gap-1 rounded-xl p-1.5">
+      {tabs.map((tab) => {
+        const isActive = active === tab.id;
+        return (
+          <button
+            key={tab.id}
+            onClick={() => onChange(tab.id)}
+            className={cn(
+              'relative flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-sm font-medium transition-colors',
+              isActive
+                ? 'text-white'
+                : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100',
+            )}
+          >
+            {isActive && (
+              <motion.span
+                layoutId="tabs-pill"
+                className="absolute inset-0 rounded-lg bg-gradient-brand shadow-glow-primary"
+                transition={{ type: 'spring', stiffness: 400, damping: 32 }}
+              />
+            )}
+            <span className="relative z-10 flex items-center gap-2">
+              {tab.icon}
+              {tab.label}
+            </span>
+          </button>
+        );
+      })}
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { Session, Transcript } from '../types';
+import type { Session, SettingsState, Transcript } from '../types';
 import { createLLMClient } from '../lib/llm/factory';
 import { buildMindmapPrompt } from '../lib/llm/prompts';
 import { dedupeOutline } from '../lib/llm/dedupeOutline';
@@ -11,12 +11,7 @@ import { setMindmapOutline } from '../lib/storage/sessionStore';
 export function useMindmap(
   transcript: Transcript | null,
   session: Session | null,
-  settings: {
-    activeProviderId: string;
-    providers: Record<string, { baseUrl: string; apiKey: string; model: string }>;
-    temperature: number;
-    maxTokens: number;
-  },
+  settings: SettingsState,
 ) {
   const [outline, setOutline] = useState<string>('');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -59,7 +54,7 @@ export function useMindmap(
       setIsGenerating(true);
       setError(null);
 
-      const client = createLLMClient(provider as never);
+      const client = createLLMClient(provider);
       const userMsg = {
         id: 'mindmap',
         role: 'user' as const,

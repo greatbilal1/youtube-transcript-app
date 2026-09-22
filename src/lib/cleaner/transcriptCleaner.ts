@@ -74,7 +74,7 @@ function mergeSegments(segments: Segment[]): Segment[] {
   for (const seg of segments) {
     const last = result[result.length - 1];
     if (seg.start === undefined && last && last.start !== undefined) {
-      last.text = `${last.text} ${seg.text}`.trim();
+      result[result.length - 1] = { ...last, text: `${last.text} ${seg.text}`.trim() };
     } else {
       result.push({ ...seg });
     }

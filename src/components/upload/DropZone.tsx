@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import { ClipboardPaste, FileUp, UploadCloud, X, Check } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../utils/cn';
 
 interface DropZoneProps {
@@ -44,12 +45,15 @@ export function DropZone({ onFile, onPasteText, disabled }: DropZoneProps) {
   }, [pasteText, onPasteText]);
 
   return (
-    <div
+    <motion.div
+      initial={{ opacity: 0, y: 16, scale: 0.98 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
       className={cn(
-        'flex flex-col gap-3 rounded-xl border-2 border-dashed p-10 text-center transition-colors',
+        'glass flex flex-col gap-3 rounded-2xl border-2 border-dashed p-10 text-center transition-colors',
         dragging
-          ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/20'
-          : 'border-gray-300 bg-white dark:border-gray-700 dark:bg-gray-900',
+          ? 'border-brand-400 bg-brand-500/10 shadow-glow'
+          : 'border-gray-300/80 dark:border-white/15',
         disabled && 'pointer-events-none opacity-50',
       )}
       onDragOver={(e) => {
@@ -63,90 +67,122 @@ export function DropZone({ onFile, onPasteText, disabled }: DropZoneProps) {
         handleFiles(e.dataTransfer.files);
       }}
     >
-      <div
-        className="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-lg p-4 transition-colors hover:border-brand-400"
+      <motion.div
+        className="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-xl p-4"
         onClick={() => inputRef.current?.click()}
         role="button"
         tabIndex={0}
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') inputRef.current?.click();
         }}
+        whileHover={{ scale: 1.02 }}
+        whileTap={{ scale: 0.98 }}
       >
-        {dragging ? (
-          <UploadCloud className="h-12 w-12 text-brand-500" />
-        ) : (
-          <FileUp className="h-12 w-12 text-gray-400 dark:text-gray-500" />
-        )}
+        <motion.div
+          animate={dragging ? { y: -6, scale: 1.1 } : { y: 0, scale: 1 }}
+          transition={{ type: 'spring', stiffness: 300, damping: 18 }}
+          className={cn(
+            'grid h-16 w-16 place-items-center rounded-2xl',
+            dragging
+              ? 'bg-gradient-brand text-white shadow-glow-primary'
+              : 'bg-brand-500/10 text-brand-600 dark:text-brand-400',
+          )}
+        >
+          {dragging ? <UploadCloud className="h-10 w-10" /> : <FileUp className="h-10 w-10" />}
+        </motion.div>
         <div>
-          <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
-            Drag & drop a transcript file here
+          <p className="text-sm font-semibold text-gray-800 dark:text-gray-100">
+            Drag &amp; drop a transcript file here
           </p>
           <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
             or click to browse — .txt files only
           </p>
         </div>
-      </div>
+      </motion.div>
 
       <div className="flex items-center gap-3">
-        <span className="h-px flex-1 bg-gray-200 dark:bg-gray-700" />
+        <span className="h-px flex-1 bg-gray-200/70 dark:bg-white/10" />
         <span className="text-xs text-gray-400 dark:text-gray-500">or</span>
-        <span className="h-px flex-1 bg-gray-200 dark:bg-gray-700" />
+        <span className="h-px flex-1 bg-gray-200/70 dark:bg-white/10" />
       </div>
 
-      {!pasteOpen ? (
-        <button
-          type="button"
-          onClick={() => {
-            setPasteOpen(true);
-            setError(null);
-          }}
-          className="mx-auto inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-brand-600 transition-colors hover:bg-brand-50 dark:text-brand-400 dark:hover:bg-brand-900/20"
-        >
-          <ClipboardPaste className="h-4 w-4" />
-          Paste a transcript instead
-        </button>
-      ) : (
-        <div className="flex flex-col gap-2 text-left">
-          <textarea
-            value={pasteText}
-            onChange={(e) => setPasteText(e.target.value)}
-            placeholder="Paste the full transcript text here…"
-            rows={6}
-            className="w-full resize-y rounded-lg border border-gray-300 bg-white p-3 text-sm text-gray-800 outline-none focus:border-brand-500 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 dark:focus:border-brand-400"
-          />
-          {error && (
-            <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
-          )}
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-xs text-gray-400 dark:text-gray-500">
-              {pasteText.length.toLocaleString()} characters
-            </span>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setPasteOpen(false);
-                  setPasteText('');
-                  setError(null);
-                }}
-                className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-gray-600 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
-              >
-                <X className="h-4 w-4" />
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handlePasteSubmit}
-                disabled={!pasteText.trim()}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <Check className="h-4 w-4" />
-                Load transcript
-              </button>
+      <AnimatePresence mode="wait" initial={false}>
+        {!pasteOpen ? (
+          <motion.button
+            key="paste-toggle"
+            type="button"
+            onClick={() => {
+              setPasteOpen(true);
+              setError(null);
+            }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="mx-auto inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-brand-600 transition-colors hover:bg-brand-500/10 dark:text-brand-400"
+          >
+            <ClipboardPaste className="h-4 w-4" />
+            Paste a transcript instead
+          </motion.button>
+        ) : (
+          <motion.div
+            key="paste-panel"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.25, ease: 'easeInOut' }}
+            className="overflow-hidden"
+          >
+            <div className="flex flex-col gap-2">
+              <textarea
+                value={pasteText}
+                onChange={(e) => setPasteText(e.target.value)}
+                placeholder="Paste the full transcript text here…"
+                rows={6}
+                className="w-full resize-none rounded-xl border border-gray-300/80 bg-white/70 p-3 text-sm text-gray-800 outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-400/30 dark:border-white/15 dark:bg-white/[0.04] dark:text-gray-100 dark:focus:border-brand-400"
+              />
+              {error && (
+                <motion.p
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="text-sm text-red-600 dark:text-red-400"
+                >
+                  {error}
+                </motion.p>
+              )}
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs text-gray-400 dark:text-gray-500">
+                  {pasteText.length.toLocaleString()} characters
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPasteOpen(false);
+                      setPasteText('');
+                      setError(null);
+                    }}
+                    className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-gray-600 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+                  >
+                    <X className="h-4 w-4" />
+                    Cancel
+                  </button>
+                  <motion.button
+                    type="button"
+                    onClick={handlePasteSubmit}
+                    disabled={!pasteText.trim()}
+                    whileHover={pasteText.trim() ? { scale: 1.03 } : undefined}
+                    whileTap={pasteText.trim() ? { scale: 0.96 } : undefined}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-brand px-3 py-1.5 text-sm font-medium text-white shadow-glow-primary transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <Check className="h-4 w-4" />
+                    Load transcript
+                  </motion.button>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <input
         ref={inputRef}
@@ -158,6 +194,6 @@ export function DropZone({ onFile, onPasteText, disabled }: DropZoneProps) {
           e.target.value = '';
         }}
       />
-    </div>
+    </motion.div>
   );
 }

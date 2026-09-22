@@ -12,6 +12,12 @@ dist-ssr
 *.local
 *.tsbuildinfo
 
+# Environment / secrets — this app asks users to paste API keys, so never
+# commit a real one. `.env.example` stays tracked as the documented template.
+.env
+.env.*
+!.env.example
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

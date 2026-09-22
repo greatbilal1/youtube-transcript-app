@@ -28,7 +28,10 @@ export function MarkdownContent({ content, onTimestampClick, className }: Markdo
             remarkPlugins={[remarkGfm]}
             components={{
               a: ({ children, ...props }) => (
-                <a {...props} className="text-brand-600 underline dark:text-brand-400">
+                <a
+                  {...props}
+                  className="text-brand-600 underline decoration-brand-300 underline-offset-2 transition-colors hover:text-brand-700 dark:text-brand-400"
+                >
                   {children}
                 </a>
               ),
@@ -36,17 +39,17 @@ export function MarkdownContent({ content, onTimestampClick, className }: Markdo
               ol: ({ children }) => <ol className="list-decimal pl-5">{children}</ol>,
               li: ({ children }) => <li className="mb-1">{children}</li>,
               h1: ({ children }) => (
-                <h1 className="mb-2 mt-4 text-xl font-bold">{children}</h1>
+                <h1 className="mb-2 mt-4 text-xl font-bold tracking-tight">{children}</h1>
               ),
               h2: ({ children }) => (
-                <h2 className="mb-2 mt-3 text-lg font-semibold">{children}</h2>
+                <h2 className="mb-2 mt-3 text-lg font-semibold tracking-tight">{children}</h2>
               ),
               h3: ({ children }) => (
                 <h3 className="mb-1 mt-2 text-base font-semibold">{children}</h3>
               ),
               p: ({ children }) => <p className="mb-2 leading-relaxed">{children}</p>,
               code: ({ children }) => (
-                <code className="rounded bg-gray-100 px-1 py-0.5 text-sm dark:bg-gray-800">
+                <code className="rounded bg-gray-100/80 px-1 py-0.5 text-sm dark:bg-gray-800/80">
                   {children}
                 </code>
               ),

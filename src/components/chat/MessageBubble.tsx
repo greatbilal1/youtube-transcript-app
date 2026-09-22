@@ -1,3 +1,4 @@
+import { motion } from 'framer-motion';
 import type { ChatMessage } from '../../types';
 import { MarkdownContent } from '../common/MarkdownContent';
 import { cn } from '../../utils/cn';
@@ -12,14 +13,20 @@ export function MessageBubble({ message, isRTL, onTimestampClick }: MessageBubbl
   const isUser = message.role === 'user';
 
   return (
-    <div className={cn('flex', isUser ? 'justify-end' : 'justify-start')}>
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 12, scale: 0.98 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+      className={cn('flex', isUser ? 'justify-end' : 'justify-start')}
+    >
       <div
         dir={isRTL ? 'rtl' : undefined}
         className={cn(
           'max-w-[85%] rounded-2xl px-4 py-3 text-sm',
           isUser
-            ? 'bg-brand-600 text-white'
-            : 'bg-white text-gray-800 shadow-sm dark:bg-gray-800 dark:text-gray-100',
+            ? 'bg-gradient-brand text-white shadow-glow-primary'
+            : 'glass text-gray-800 dark:text-gray-100',
         )}
       >
         {isUser ? (
@@ -31,6 +38,6 @@ export function MessageBubble({ message, isRTL, onTimestampClick }: MessageBubbl
           />
         )}
       </div>
-    </div>
+    </motion.div>
   );
 }

@@ -1,4 +1,5 @@
 import { FileText, MessageSquare, Network, Trash2 } from 'lucide-react';
+import { motion } from 'framer-motion';
 import type { Session } from '../../types';
 
 interface SessionCardProps {
@@ -18,14 +19,18 @@ function formatDate(ts: number): string {
 
 export function SessionCard({ session, onRestore, onDelete }: SessionCardProps) {
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-3 transition-colors hover:border-brand-400 dark:border-gray-700 dark:bg-gray-900">
+    <motion.div
+      whileHover={{ y: -2 }}
+      transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+      className="glass group rounded-xl p-3 transition-shadow hover:shadow-glow"
+    >
       <button
         onClick={() => onRestore(session)}
         className="block w-full text-left"
         title="Restore session"
       >
         <div className="flex items-start justify-between gap-2">
-          <h3 className="truncate text-sm font-medium text-gray-900 dark:text-gray-100">
+          <h3 className="truncate text-sm font-semibold text-gray-900 dark:text-gray-100">
             {session.transcriptTitle}
           </h3>
           <span className="shrink-0 text-xs text-gray-400">
@@ -49,15 +54,16 @@ export function SessionCard({ session, onRestore, onDelete }: SessionCardProps) 
           )}
         </div>
       </button>
-      <div className="mt-2 flex justify-end">
-        <button
+      <div className="mt-2 flex justify-end opacity-0 transition-opacity group-hover:opacity-100">
+        <motion.button
+          whileTap={{ scale: 0.9 }}
           onClick={() => onDelete(session.id)}
           className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/30"
           aria-label="Delete session"
         >
           <Trash2 className="h-4 w-4" />
-        </button>
+        </motion.button>
       </div>
-    </div>
+    </motion.div>
   );
 }
