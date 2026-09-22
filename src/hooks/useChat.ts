@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { v4 as uuid } from 'uuid';
-import type { ChatMessage, Session, Transcript } from '../types';
+import type { ChatMessage, Session, SettingsState, Transcript } from '../types';
 import { createLLMClient } from '../lib/llm/factory';
 import { buildChatSystemPrompt } from '../lib/llm/prompts';
 import { appendChatMessage } from '../lib/storage/sessionStore';
@@ -12,12 +12,7 @@ import { appendChatMessage } from '../lib/storage/sessionStore';
 export function useChat(
   transcript: Transcript | null,
   session: Session | null,
-  settings: {
-    activeProviderId: string;
-    providers: Record<string, { baseUrl: string; apiKey: string; model: string }>;
-    temperature: number;
-    maxTokens: number;
-  },
+  settings: SettingsState,
 ) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
@@ -92,7 +87,7 @@ export function useChat(
       setError(null);
       setIsStreaming(true);
 
-      const client = createLLMClient(provider as never);
+      const client = createLLMClient(provider);
       const systemMsg: ChatMessage = {
         id: uuid(),
         role: 'system',
@@ -101,7 +96,8 @@ export function useChat(
       };
 
       // Wire up a fresh AbortController so Stop can cancel the request.
-      abortRef.current = new AbortController();
+      const controller = new AbortController();
+      abortRef.current = controller;
 
       // Accumulates streamed tokens so a partial reply can be kept when the
       // user stops mid-stream.
@@ -113,7 +109,7 @@ export function useChat(
           {
             temperature: settings.temperature,
             maxTokens: settings.maxTokens,
-            signal: abortRef.current.signal,
+            signal: controller.signal,
           },
           (token) => {
             // Track partial content so it can be persisted if aborted.
@@ -148,7 +144,7 @@ export function useChat(
       } catch (e) {
         // If the user pressed Stop, keep the streamed-so-far reply rather
         // than deleting it or showing an error.
-        if (e instanceof DOMException && e.name === 'AbortError') {
+        if (e instanceof Error && e.name === 'AbortError') {
           setMessagesBoth((prev) => {
             const copy = [...prev];
             const last = copy[copy.length - 1];
@@ -170,16 +166,20 @@ export function useChat(
         setError(msg);
         setMessagesBoth((prev) => prev.filter((m) => m.id !== assistantMsg.id));
       } finally {
+        // Only release the ref if this request still owns it. A later request
+        // may have replaced it, and nulling that one would break Stop for it.
+        if (abortRef.current === controller) abortRef.current = null;
         setIsStreaming(false);
-        abortRef.current = null;
       }
     },
     [input, transcript, session, settings, isStreaming],
   );
 
+  // Abort the in-flight request. `isStreaming` is deliberately left alone here:
+  // clearing it before the abort lands would let a second send start while the
+  // first is still unwinding. `sendMessage`'s finally block clears the flag.
   const stopStreaming = useCallback(() => {
     abortRef.current?.abort();
-    setIsStreaming(false);
   }, []);
 
   const clearChat = useCallback(() => {

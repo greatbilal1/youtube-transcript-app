@@ -31,8 +31,9 @@ export function MessageList({
         className="flex h-full flex-col items-center justify-center gap-2 p-8 text-center"
       >
         <p className="text-sm text-gray-500 dark:text-gray-400">
-          Ask questions about the transcript. The assistant will only answer
-          using information from the file.
+          Ask questions about the transcript. Answers are grounded in the
+          transcript, and the assistant flags anything it adds from its own
+          knowledge.
         </p>
       </motion.div>
     );

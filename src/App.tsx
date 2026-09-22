@@ -16,7 +16,6 @@ import { useTranscript } from './hooks/useTranscript';
 import { useChat } from './hooks/useChat';
 import { useSummary } from './hooks/useSummary';
 import { useMindmap } from './hooks/useMindmap';
-import { useKnowledgeMap } from './hooks/useKnowledgeMap';
 import { useHistory } from './hooks/useHistory';
 import { useTheme } from './hooks/useTheme';
 import type { Session, Summary, Transcript } from './types';
@@ -27,16 +26,20 @@ import { getSession, getTranscript } from './lib/storage/sessionStore';
 const MindmapPanel = lazy(() =>
   import('./components/mindmap/v1/MindmapPanel').then((m) => ({ default: m.MindmapPanel })),
 );
-const MindmapV2Panel = lazy(() =>
-  import('./components/mindmap/v2/MindmapV2Panel').then((m) => ({ default: m.MindmapV2Panel })),
-);
 
-type TabId = 'summarize' | 'mindmap' | 'mindmap-v2';
+type TabId = 'summarize' | 'mindmap';
 
 export default function App() {
   const { theme, toggleTheme } = useTheme();
-  const { settings, updateProvider, setActiveProvider, setTemperature, setMaxTokens } =
-    useSettings();
+  const {
+    settings,
+    updateProvider,
+    setActiveProvider,
+    setTemperature,
+    setMaxTokens,
+    setRememberApiKeys,
+    resetSettings,
+  } = useSettings();
 
   const transcriptHook = useTranscript();
   const { transcript, highlightedSegment, viewMode, setViewMode, ingestFile, pasteTranscript, loadTranscript, highlightSegment } =
@@ -51,7 +54,6 @@ export default function App() {
   const chatHook = useChat(transcript, session, settings);
   const summaryHook = useSummary(transcript, session, settings);
   const mindmapHook = useMindmap(transcript, session, settings);
-  const knowledgeMapHook = useKnowledgeMap(transcript, session, settings);
   const historyHook = useHistory();
 
   /** Fire a Sonner toast for a user-facing message. */
@@ -64,29 +66,42 @@ export default function App() {
   /** Ensure a session exists for the current transcript. */
   const ensureSession = useCallback(
     async (t: Transcript): Promise<Session | null> => {
-      const s = await historyHook.createSessionFor(t);
-      setSession(s);
-      return s;
+      try {
+        const s = await historyHook.createSessionFor(t);
+        setSession(s);
+        return s;
+      } catch {
+        pushToast('error', 'Could not open a session for this transcript.');
+        return null;
+      }
     },
-    [historyHook],
+    [historyHook, pushToast],
   );
 
   const handleFile = useCallback(
     async (file: File) => {
-      const t = await ingestFile(file);
-      setSession(null);
-      setActiveTab('summarize');
-      pushToast('success', `Loaded "${t.title}"`);
+      try {
+        const t = await ingestFile(file);
+        setSession(null);
+        setActiveTab('summarize');
+        pushToast('success', `Loaded "${t.title}"`);
+      } catch {
+        pushToast('error', 'Could not read or save that file.');
+      }
     },
     [ingestFile, pushToast],
   );
 
   const handlePasteText = useCallback(
     async (text: string) => {
-      const t = await pasteTranscript(text);
-      setSession(null);
-      setActiveTab('summarize');
-      pushToast('success', `Loaded "${t.title}"`);
+      try {
+        const t = await pasteTranscript(text);
+        setSession(null);
+        setActiveTab('summarize');
+        pushToast('success', `Loaded "${t.title}"`);
+      } catch {
+        pushToast('error', 'Could not save the pasted transcript.');
+      }
     },
     [pasteTranscript, pushToast],
   );
@@ -106,10 +121,17 @@ export default function App() {
   // Re-fetch the authoritative session from IndexedDB so concurrent
   // operations (summary / chat / mindmap) never overwrite each other's data
   // with a partial derivative returned by a single operation.
-  const refreshSession = useCallback(async (id: string) => {
-    const fresh = await getSession(id);
-    if (fresh) setSession(fresh);
-  }, []);
+  const refreshSession = useCallback(
+    async (id: string) => {
+      try {
+        const fresh = await getSession(id);
+        if (fresh) setSession(fresh);
+      } catch {
+        pushToast('error', 'Could not reload the session from storage.');
+      }
+    },
+    [pushToast],
+  );
 
   const handleGenerateSummary = useCallback(
     async (length: Summary['length']) => {
@@ -142,14 +164,6 @@ export default function App() {
     await refreshSession(s.id);
   }, [transcript, session, ensureSession, mindmapHook, refreshSession]);
 
-  const handleGenerateKnowledgeMap = useCallback(async () => {
-    if (!transcript) return;
-    const s = session ?? (await ensureSession(transcript));
-    if (!s) return;
-    await knowledgeMapHook.generate(s);
-    await refreshSession(s.id);
-  }, [transcript, session, ensureSession, knowledgeMapHook, refreshSession]);
-
   /** Map a timestamp (seconds) to a transcript segment index and highlight it. */
   const handleTimestampClick = useCallback(
     (seconds: number) => {
@@ -177,24 +191,32 @@ export default function App() {
 
   const handleRestoreSession = useCallback(
     async (s: Session) => {
-      const t = await getTranscript(s.transcriptId);
-      if (!t) {
-        pushToast('error', 'The transcript for this session no longer exists.');
-        return;
+      try {
+        const t = await getTranscript(s.transcriptId);
+        if (!t) {
+          pushToast('error', 'The transcript for this session no longer exists.');
+          return;
+        }
+        loadTranscript(t);
+        setSession(s);
+        setActiveTab('summarize');
+        setHistoryOpen(false);
+        pushToast('success', `Restored "${s.transcriptTitle}"`);
+      } catch {
+        pushToast('error', 'Could not restore that session.');
       }
-      loadTranscript(t);
-      setSession(s);
-      setActiveTab('summarize');
-      setHistoryOpen(false);
-      pushToast('success', `Restored "${s.transcriptTitle}"`);
     },
     [loadTranscript, pushToast],
   );
 
   const handleDeleteSession = useCallback(
     async (id: string) => {
-      await historyHook.removeSession(id);
-      pushToast('info', 'Session deleted.');
+      try {
+        await historyHook.removeSession(id);
+        pushToast('info', 'Session deleted.');
+      } catch {
+        pushToast('error', 'Could not delete that session.');
+      }
     },
     [historyHook, pushToast],
   );
@@ -203,7 +225,6 @@ export default function App() {
     () => [
       { id: 'summarize', label: 'Summarize & Chat', icon: <MessageSquare className="h-4 w-4" /> },
       { id: 'mindmap', label: 'Mindmap', icon: <Network className="h-4 w-4" /> },
-      { id: 'mindmap-v2', label: 'Mindmap', icon: <Network className="h-4 w-4" /> },
     ],
     [],
   );
@@ -336,34 +357,6 @@ export default function App() {
                 </motion.div>
               )}
 
-              {activeTab === 'mindmap-v2' && (
-                <motion.div
-                  key="mindmap-v2"
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -8 }}
-                  transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-                  className="glass min-h-0 flex-1 overflow-hidden rounded-2xl"
-                >
-                  <Suspense
-                    fallback={
-                      <div className="flex h-full items-center justify-center text-gray-500 dark:text-gray-400">
-                        <Spinner />
-                      </div>
-                    }
-                  >
-                    <MindmapV2Panel
-                      transcript={transcript}
-                      tree={knowledgeMapHook.tree}
-                      isGenerating={knowledgeMapHook.isGenerating}
-                      error={knowledgeMapHook.error}
-                      onGenerate={handleGenerateKnowledgeMap}
-                      onTreeChange={knowledgeMapHook.updateTree}
-                    />
-                  </Suspense>
-                </motion.div>
-              )}
-
             </AnimatePresence>
           </>
         )}
@@ -377,6 +370,8 @@ export default function App() {
         onSetActive={setActiveProvider}
         onSetTemperature={setTemperature}
         onSetMaxTokens={setMaxTokens}
+        onSetRememberApiKeys={setRememberApiKeys}
+        onReset={resetSettings}
       />
 
       <ToastContainer />

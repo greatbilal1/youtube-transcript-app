@@ -17,6 +17,8 @@ interface SettingsModalProps {
   onSetActive: (id: ProviderId) => void;
   onSetTemperature: (t: number) => void;
   onSetMaxTokens: (t: number) => void;
+  onSetRememberApiKeys: (remember: boolean) => void;
+  onReset: () => void;
 }
 
 export function SettingsModal({
@@ -27,6 +29,8 @@ export function SettingsModal({
   onSetActive,
   onSetTemperature,
   onSetMaxTokens,
+  onSetRememberApiKeys,
+  onReset,
 }: SettingsModalProps) {
   const [selectedId, setSelectedId] = useState<ProviderId>(settings.activeProviderId);
   const selected = settings.providers[selectedId];
@@ -102,7 +106,40 @@ export function SettingsModal({
         </div>
       </div>
 
-      <div className="mt-6 flex justify-end">
+      <label className="mt-6 flex cursor-pointer items-start gap-2.5 rounded-xl border border-gray-200/70 bg-white/50 p-3 dark:border-white/10 dark:bg-white/[0.03]">
+        <input
+          type="checkbox"
+          checked={settings.rememberApiKeys}
+          onChange={(e) => onSetRememberApiKeys(e.target.checked)}
+          className="mt-0.5 h-4 w-4 shrink-0 accent-brand-500"
+        />
+        <span className="text-xs text-gray-600 dark:text-gray-300">
+          <span className="font-medium text-gray-800 dark:text-gray-100">
+            Remember API keys on this device
+          </span>
+          <br />
+          {settings.rememberApiKeys
+            ? 'Keys are saved unencrypted in this browser and will be here when you come back.'
+            : 'Keys are kept in memory only and are gone when you reload. Nothing is written to disk.'}
+        </span>
+      </label>
+
+      <div className="mt-6 flex items-center justify-between">
+        <button
+          type="button"
+          onClick={() => {
+            if (
+              window.confirm(
+                'Reset all provider settings to defaults? Configured base URLs and API keys will be cleared.',
+              )
+            ) {
+              onReset();
+            }
+          }}
+          className="text-xs font-medium text-gray-500 transition-colors hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400"
+        >
+          Reset to defaults
+        </button>
         <Button onClick={onClose}>Done</Button>
       </div>
     </Modal>

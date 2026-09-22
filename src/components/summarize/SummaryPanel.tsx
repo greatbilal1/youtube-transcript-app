@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { MousePointerClick } from 'lucide-react';
 import type { Summary, SummaryLength, Transcript } from '../../types';
 import { MarkdownContent } from '../common/MarkdownContent';
 import { ActionBar } from './ActionBar';
 import { SummaryControls } from './SummaryControls';
 import { Spinner } from '../common/Spinner';
+import { toast } from '../common/Toast';
 import { downloadText } from '../../utils/download';
 import { cn } from '../../utils/cn';
 
@@ -31,9 +33,15 @@ export function SummaryPanel({
 
   const handleCopy = async () => {
     if (!summary) return;
-    await navigator.clipboard.writeText(summary.content);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    try {
+      await navigator.clipboard.writeText(summary.content);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard access is denied outside secure contexts and when the
+      // permission is refused.
+      toast.error('Copy failed — clipboard access was blocked.');
+    }
   };
 
   const handleExport = () => {
@@ -118,7 +126,6 @@ export function SummaryPanel({
             <MarkdownContent
               content={summary.content}
               onTimestampClick={onTimestampClick}
-              className="prose prose-sm max-w-none dark:prose-invert"
             />
             <AnimatePresence>
               {copied && (
@@ -135,13 +142,25 @@ export function SummaryPanel({
           </motion.div>
         )}
 
+        {/* Empty state. The three length buttons above *are* the generate
+            action, and one of them already looks selected, so the prompt has to
+            say that clicking one is what starts the summary. */}
         {!summary && !isGenerating && !error && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="rounded-xl border-2 border-dashed border-gray-300/70 p-8 text-center text-sm text-gray-500 dark:border-white/15 dark:text-gray-400"
+            className="flex flex-col items-center gap-2 rounded-xl border-2 border-dashed border-gray-300/70 p-8 text-center dark:border-white/15"
           >
-            Choose a summary length above to generate a summary of the transcript.
+            <MousePointerClick className="h-8 w-8 text-gray-300 dark:text-gray-600" />
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-200">
+              No summary yet
+            </p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Click <span className="font-medium text-gray-700 dark:text-gray-200">Concise</span>,{' '}
+              <span className="font-medium text-gray-700 dark:text-gray-200">Normal</span>, or{' '}
+              <span className="font-medium text-gray-700 dark:text-gray-200">Detailed</span> above
+              to generate one.
+            </p>
           </motion.div>
         )}
       </AnimatePresence>

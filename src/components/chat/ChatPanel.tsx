@@ -35,8 +35,11 @@ export function ChatPanel({
         <h2 className="text-lg font-semibold tracking-tight text-gray-900 dark:text-gray-100">
           Chat
         </h2>
-        <span className="ml-auto rounded-full bg-brand-500/10 px-2.5 py-0.5 text-xs font-medium text-brand-600 dark:text-brand-300">
-          Strict context
+        <span
+          className="ml-auto rounded-full bg-brand-500/10 px-2.5 py-0.5 text-xs font-medium text-brand-600 dark:text-brand-300"
+          title="Answers come from the transcript; anything added from the model's own knowledge is flagged."
+        >
+          Transcript-grounded
         </span>
       </div>
 

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { v4 as uuid } from 'uuid';
-import type { Session, Summary, SummaryLength, Transcript } from '../types';
+import type { Session, SettingsState, Summary, SummaryLength, Transcript } from '../types';
 import { createLLMClient } from '../lib/llm/factory';
 import { buildSummaryPrompt } from '../lib/llm/prompts';
 import { upsertSummary } from '../lib/storage/sessionStore';
@@ -13,12 +13,7 @@ import { upsertSummary } from '../lib/storage/sessionStore';
 export function useSummary(
   transcript: Transcript | null,
   session: Session | null,
-  settings: {
-    activeProviderId: string;
-    providers: Record<string, { baseUrl: string; apiKey: string; model: string }>;
-    temperature: number;
-    maxTokens: number;
-  },
+  settings: SettingsState,
 ) {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [selectedLength, setSelectedLength] = useState<SummaryLength>('normal');
@@ -38,8 +33,12 @@ export function useSummary(
     if (isGenerating) return;
 
     const id = session?.id ?? null;
-    // Same active session — don't restore (this fires on every parent session
-    // refresh and would otherwise clobber the just-streamed summary).
+    // Same active session — don't restore. This effect also fires when the
+    // generation itself ends and when the parent refreshes the session, and the
+    // `session` object in hand is the copy captured *before* the new summary was
+    // persisted, so re-deriving here would drop the summary that was just
+    // streamed. `generate` claims the session id up front so this guard
+    // recognises it.
     if (id === activeSessionIdRef.current) return;
     activeSessionIdRef.current = id;
 
@@ -69,6 +68,11 @@ export function useSummary(
       // regenerate. Prefer the explicitly-passed session (avoids the
       // stale-closure bug where `session` is still null after creation).
       const persistTo = targetSession ?? session;
+      // Claim the session here, before any await: when the session is created
+      // and the generation starts in the same commit, the restore effect never
+      // observes them separately, so this is the only chance to record which
+      // session `summary` belongs to.
+      if (persistTo) activeSessionIdRef.current = persistTo.id;
       const existing = persistTo?.summaries.find((s) => s.length === length);
       if (existing) {
         setSummary(existing);
@@ -79,7 +83,7 @@ export function useSummary(
       setIsGenerating(true);
       setError(null);
 
-      const client = createLLMClient(provider as never);
+      const client = createLLMClient(provider);
       const userMsg = {
         id: uuid(),
         role: 'user' as const,

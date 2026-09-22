@@ -122,12 +122,3 @@ export async function setMindmapOutline(
   return updated;
 }
 
-/** Set the semantic knowledge tree on a session and persist. */
-export async function setKnowledgeTree(
-  session: Session,
-  tree: import('../../types/knowledgeMap').KnowledgeTree,
-): Promise<Session> {
-  const updated: Session = { ...session, knowledgeTree: tree };
-  await saveSession(updated);
-  return updated;
-}
