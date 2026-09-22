@@ -22,6 +22,19 @@ const SAMPLE_OUTLINE = `# Main Topic
 - Point 3
 - Point 4`;
 
+/**
+ * Let jsdom run queued animation frames, which is where markmap's d3 transitions
+ * and zoom gestures tick. Without this the frames fire after the test has
+ * finished and anything they throw is reported as an unhandled error — the run
+ * fails while every test still says it passed. Draining them inside the test
+ * turns that into a normal failure with a stack trace.
+ */
+async function flushFrames(count = 12) {
+  for (let i = 0; i < count; i++) {
+    await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
+  }
+}
+
 describe('MarkmapView', () => {
   beforeEach(() => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -38,6 +51,8 @@ describe('MarkmapView', () => {
     await waitFor(() => {
       expect(container.querySelector('svg')).toBeTruthy();
     });
+
+    await flushFrames();
 
     const svg = container.querySelector('svg');
     expect(svg).toBeTruthy();
@@ -56,5 +71,7 @@ describe('MarkmapView', () => {
     await waitFor(() => {
       expect(container.querySelectorAll('button').length).toBeGreaterThanOrEqual(3);
     });
+
+    await flushFrames();
   });
 });

@@ -33,6 +33,55 @@ if (!('ResizeObserver' in globalThis)) {
 }
 
 /**
+ * jsdom implements neither `SVGElement.transform` nor `SVGSVGElement.viewBox`,
+ * and d3 reads both through markmap: `d3-interpolate` consolidates a transform
+ * when it builds a transition tween, and `d3-zoom` derives its default extent
+ * from the viewBox. Those reads happen inside a requestAnimationFrame callback,
+ * so the throw lands *after* the test that triggered it has finished, and vitest
+ * reports it as an unhandled error — failing the run even though every test
+ * passed. (It reproduces reliably in CI and only intermittently locally, which
+ * is what makes it worth pinning down here rather than in one test file.)
+ *
+ * `consolidate()` returning null is d3's own "no transform" signal, so the stub
+ * reports the identity instead of inventing geometry.
+ */
+Object.defineProperty(SVGElement.prototype, 'transform', {
+  configurable: true,
+  get() {
+    return { baseVal: { consolidate: () => null } };
+  },
+});
+
+Object.defineProperty(SVGSVGElement.prototype, 'viewBox', {
+  configurable: true,
+  get(this: SVGSVGElement) {
+    const [x, y, width, height] = (this.getAttribute('viewBox') ?? '')
+      .trim()
+      .split(/[\s,]+/)
+      .map(Number);
+    return {
+      baseVal: { x: x || 0, y: y || 0, width: width || 0, height: height || 0 },
+    };
+  },
+});
+
+/**
+ * The other half of `defaultExtent`: with no viewBox on the element it falls
+ * back to `svg.width.baseVal.value` / `svg.height.baseVal.value`, and jsdom
+ * implements neither `width` nor `height` on `SVGSVGElement` as the
+ * `SVGAnimatedLength` d3 expects. Markmap wires d3-zoom onto its SVG, so this
+ * branch runs on the first gesture.
+ */
+for (const prop of ['width', 'height']) {
+  Object.defineProperty(SVGSVGElement.prototype, prop, {
+    configurable: true,
+    get(this: SVGSVGElement) {
+      return { baseVal: { value: Number(this.getAttribute(prop)) || 0 } };
+    },
+  });
+}
+
+/**
  * Node 22 defines a `localStorage` global that stays inert unless the process is
  * started with `--localstorage-file`, and that inert global shadows the working
  * one jsdom installs on `window`. Install the same minimal in-memory store on
