@@ -32,7 +32,7 @@ npm test
 
 ## Provider Setup
 
-Open **Settings** (gear icon) and configure at least one provider:
+Open **Settings** (gear icon) and configure at least one provider for example:
 
 | Provider | Base URL | Notes |
 |----------|----------|-------|
