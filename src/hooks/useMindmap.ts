@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Session, SettingsState, Transcript } from '../types';
-import { createLLMClient } from '../lib/llm/factory';
+import {
+  createLLMClient,
+  NO_PROVIDER_ERROR,
+  resolveProvider,
+} from '../lib/llm/factory';
 import { buildMindmapPrompt } from '../lib/llm/prompts';
 import { dedupeOutline } from '../lib/llm/dedupeOutline';
 import { setMindmapOutline } from '../lib/storage/sessionStore';
@@ -16,7 +20,6 @@ export function useMindmap(
   const [outline, setOutline] = useState<string>('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const containerRef = useRef<HTMLDivElement | null>(null);
   // Tracks the active session id so the restore effect only re-syncs when
   // switching sessions — not on every `session` object mutation (e.g. a
   // concurrent summary update refreshing the parent). This keeps a mindmap
@@ -45,9 +48,9 @@ export function useMindmap(
         setError('No transcript loaded.');
         return;
       }
-      const provider = settings.providers[settings.activeProviderId];
-      if (!provider?.model) {
-        setError('No active provider configured. Open Settings to configure one.');
+      const provider = resolveProvider(settings);
+      if (!provider) {
+        setError(NO_PROVIDER_ERROR);
         return;
       }
 
@@ -98,6 +101,5 @@ export function useMindmap(
     error,
     generate,
     clearMindmap,
-    containerRef,
   };
 }

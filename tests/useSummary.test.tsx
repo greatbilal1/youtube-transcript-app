@@ -3,7 +3,10 @@ import { act, renderHook } from '@testing-library/react';
 import { useSummary } from '../src/hooks/useSummary';
 import type { Session, SettingsState, Summary, Transcript } from '../src/types';
 
-vi.mock('../src/lib/llm/factory', () => ({
+// Only the client is stubbed; the provider helpers keep their real behaviour so
+// the hook's "no provider configured" path is exercised as written.
+vi.mock('../src/lib/llm/factory', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../src/lib/llm/factory')>()),
   createLLMClient: () => ({
     chat: async () => 'unused',
     chatStream: async (

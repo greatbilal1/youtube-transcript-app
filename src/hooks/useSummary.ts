@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { v4 as uuid } from 'uuid';
 import type { Session, SettingsState, Summary, SummaryLength, Transcript } from '../types';
-import { createLLMClient } from '../lib/llm/factory';
+import {
+  createLLMClient,
+  NO_PROVIDER_ERROR,
+  resolveProvider,
+} from '../lib/llm/factory';
 import { buildSummaryPrompt } from '../lib/llm/prompts';
 import { upsertSummary } from '../lib/storage/sessionStore';
 
@@ -56,9 +60,9 @@ export function useSummary(
         setError('No transcript loaded.');
         return;
       }
-      const provider = settings.providers[settings.activeProviderId];
-      if (!provider?.model) {
-        setError('No active provider configured. Open Settings to configure one.');
+      const provider = resolveProvider(settings);
+      if (!provider) {
+        setError(NO_PROVIDER_ERROR);
         return;
       }
 

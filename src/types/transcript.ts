@@ -1,9 +1,3 @@
-/** Timestamp in seconds. */
-export interface Timestamp {
-  start: number;
-  end: number;
-}
-
 /** A single transcript segment, optionally carrying a timestamp. */
 export interface Segment {
   text: string;

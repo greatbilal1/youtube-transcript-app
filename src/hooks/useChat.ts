@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { v4 as uuid } from 'uuid';
 import type { ChatMessage, Session, SettingsState, Transcript } from '../types';
-import { createLLMClient } from '../lib/llm/factory';
+import {
+  createLLMClient,
+  NO_PROVIDER_ERROR,
+  resolveProvider,
+} from '../lib/llm/factory';
 import { buildChatSystemPrompt } from '../lib/llm/prompts';
 import { appendChatMessage } from '../lib/storage/sessionStore';
 
@@ -62,9 +66,9 @@ export function useChat(
       const content = (text ?? input).trim();
       if (!content || !transcript || isStreaming) return;
 
-      const provider = settings.providers[settings.activeProviderId];
-      if (!provider?.model) {
-        setError('No active provider configured. Open Settings to configure one.');
+      const provider = resolveProvider(settings);
+      if (!provider) {
+        setError(NO_PROVIDER_ERROR);
         return;
       }
 

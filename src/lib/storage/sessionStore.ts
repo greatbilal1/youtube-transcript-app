@@ -12,18 +12,6 @@ export async function getTranscript(id: string): Promise<Transcript | undefined>
   return db.transcripts.get(id);
 }
 
-/** List all transcripts, newest first. */
-export async function listTranscripts(): Promise<Transcript[]> {
-  return db.transcripts.orderBy('createdAt').reverse().toArray();
-}
-
-/** Delete a transcript and its associated sessions/summaries. */
-export async function deleteTranscript(id: string): Promise<void> {
-  await db.transcripts.delete(id);
-  await db.sessions.where('transcriptId').equals(id).delete();
-  await db.summaries.where('transcriptId').equals(id).delete();
-}
-
 /** Get or create the session for a transcript. */
 export async function getOrCreateSession(transcript: Transcript): Promise<Session> {
   const existing = await db.sessions.where('transcriptId').equals(transcript.id).first();
@@ -49,7 +37,7 @@ export async function getSession(id: string): Promise<Session | undefined> {
 }
 
 /** Persist a session (full replace). */
-export async function saveSession(session: Session): Promise<void> {
+async function saveSession(session: Session): Promise<void> {
   session.updatedAt = Date.now();
   await db.sessions.put(session);
   // Keep the denormalized summaries table in sync.
@@ -80,9 +68,16 @@ export async function searchSessions(query: string): Promise<Session[]> {
     .sort((a, b) => b.updatedAt - a.updatedAt);
 }
 
-/** Delete a session. */
+/** Delete a session along with its transcript and summaries. */
 export async function deleteSession(id: string): Promise<void> {
+  const session = await db.sessions.get(id);
   await db.sessions.delete(id);
+  if (!session) return;
+  // Sessions and transcripts are 1:1, so the transcript is unreachable once its
+  // session is gone. Leaving it — and the denormalized summaries — behind leaks
+  // a row for every transcript ever opened.
+  await db.transcripts.delete(session.transcriptId);
+  await db.summaries.where('transcriptId').equals(session.transcriptId).delete();
 }
 
 /** Append a chat message to a session and persist. */

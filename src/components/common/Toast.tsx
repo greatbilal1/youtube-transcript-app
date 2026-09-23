@@ -1,13 +1,5 @@
 import { Toaster as SonnerToaster } from 'sonner';
 
-export type ToastType = 'success' | 'error' | 'info';
-
-export interface ToastData {
-  id: string;
-  type: ToastType;
-  message: string;
-}
-
 /**
  * Toast notifications, powered by Sonner. The `<ToastContainer />` renders
  * the `Toaster` shell; toasts are fired via the imperative `toast` API

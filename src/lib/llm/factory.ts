@@ -1,4 +1,4 @@
-import type { ProviderConfig } from '../../types';
+import type { ProviderConfig, SettingsState } from '../../types';
 import type { LLMClient } from './client';
 import { OpenAICompatibleClient } from './openaiCompatible';
 import { OllamaClient } from './ollama';
@@ -13,4 +13,17 @@ export function createLLMClient(provider: ProviderConfig): LLMClient {
     return new OllamaClient(provider);
   }
   return new OpenAICompatibleClient(provider);
+}
+
+/** Shown when a generation is attempted with no usable provider selected. */
+export const NO_PROVIDER_ERROR =
+  'No active provider configured. Open Settings to configure one.';
+
+/**
+ * The provider the user has selected, or null when it can't be called — a
+ * provider with no model is as unusable as a missing one.
+ */
+export function resolveProvider(settings: SettingsState): ProviderConfig | null {
+  const provider = settings.providers[settings.activeProviderId];
+  return provider?.model ? provider : null;
 }

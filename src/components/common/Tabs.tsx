@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { cn } from '../../utils/cn';
 
-export interface TabItem {
+interface TabItem {
   id: string;
   label: string;
   icon?: React.ReactNode;

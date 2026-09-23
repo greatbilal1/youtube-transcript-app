@@ -7,7 +7,7 @@ import type { Session, Summary, Transcript } from '../../types';
  * - sessions: aggregate of chat + summaries + mindmap per transcript
  * - summaries: denormalized for fast history listing
  */
-export class TranscriptDB extends Dexie {
+class TranscriptDB extends Dexie {
   transcripts!: Table<Transcript, string>;
   sessions!: Table<Session, string>;
   summaries!: Table<Summary, string>;

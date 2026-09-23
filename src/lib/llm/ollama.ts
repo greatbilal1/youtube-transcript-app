@@ -1,6 +1,6 @@
 import type { ChatMessage, ProviderConfig } from '../../types';
 import type { ChatOptions, LLMClient } from './client';
-import { toWireMessage } from './client';
+import { readLines, toWireMessage } from './client';
 
 /**
  * Ollama client using the /api/chat endpoint.
@@ -67,36 +67,23 @@ export class OllamaClient implements LLMClient {
       throw new Error('Streaming not supported by Ollama.');
     }
 
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
     let full = '';
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-
-      // Ollama streams NDJSON lines.
-      const lines = buffer.split('\n');
-      buffer = lines.pop() ?? '';
-
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (!trimmed) continue;
-        try {
-          const json = JSON.parse(trimmed);
-          const delta = json?.message?.content;
-          if (typeof delta === 'string' && delta.length > 0) {
-            full += delta;
-            onToken(delta);
-          }
-          if (json?.done) {
-            return full;
-          }
-        } catch {
-          // Ignore malformed chunks.
+    // Ollama streams NDJSON: one JSON object per line, terminated by `done`.
+    for await (const line of readLines(res.body)) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      try {
+        const json = JSON.parse(trimmed);
+        const delta = json?.message?.content;
+        if (typeof delta === 'string' && delta.length > 0) {
+          full += delta;
+          onToken(delta);
         }
+        if (json?.done) {
+          return full;
+        }
+      } catch {
+        // Ignore malformed chunks.
       }
     }
 
